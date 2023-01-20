@@ -1,0 +1,16 @@
+/auto-save-list
+/*.el
+/eln-cache
+/elpa
+/recentf
+/server
+/transient
+*.userdb
+user.yaml
+etc/rime-user/installation.yaml
+build
+projects
+/.extension
+.dap-breakpoints
+/straight
+/tree-sitter

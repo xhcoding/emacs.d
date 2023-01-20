@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: cff
+# key: cff
+# --
+// clang-format off
+$0
+// clang-format on

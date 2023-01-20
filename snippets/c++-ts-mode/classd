@@ -1,0 +1,12 @@
+# -*- mode: snippet -*-
+# name: classd
+# key: classd
+# --
+class ${1:Name} final : public $2 {
+public:
+    $1($0);
+    ~$1();
+
+    $1(const $1&) = delete;
+    $1& operator=(const $1&) = delete;
+};

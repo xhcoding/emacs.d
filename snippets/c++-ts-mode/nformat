@@ -1,0 +1,8 @@
+# -*- mode: snippet -*-
+# name: nformat
+# key: nformat
+# --
+
+// clang-format off
+$0
+// clang-format on

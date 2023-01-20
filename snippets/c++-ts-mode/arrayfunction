@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: arrayfunction
+# key: afn
+# --
+${3:$(my/cc-map-void yas-text "void " "auto ")}${1:name}($2)${3:$(my/cc-map-void yas-text "" " -> ")}$3 {
+$0
+}

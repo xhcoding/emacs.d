@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: multi-comment
+# key: /*
+# --
+/**
+ * $0
+ */

@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: ifd
+# key: ifd
+# --
+#ifdef $1
+$0
+#endif // $1

@@ -1,0 +1,973 @@
+#+STARTUP: overview
+
+* 安装方法
+
+1. 下载配置文件
+   #+begin_src shell
+     git clone https://github.com/xhcoding/.emacs.d.git ~/.emacs.d
+   #+end_src
+2. 运行 org-tangle.bat 导出配置到 .el 文件
+
+3. 启动 emacs
+
+* early-init.el
+:PROPERTIES:
+:HEADER-ARGS: :tangle early-init.el
+:END:
+
+Emacs 启动过程的早期加载。
+
+#+begin_src elisp
+  ;;; early-init.el --- early init  -*- lexical-binding: t no-byte-compile: t; -*-
+#+end_src
+
+** 将 gc 的阈值设置到最大，避免启动的时候多次 gc 拖慢启动速度
+
+#+begin_src elisp
+  (setq gc-cons-threshold most-positive-fixnum)
+#+end_src
+
+** 不要初始化 package
+
+#+begin_src elisp
+  (setq package-enable-at-startup nil)
+#+end_src
+
+** 禁止 frame 缩放
+
+#+begin_src elisp
+  (setq frame-inhibit-implied-resize t)
+#+end_src
+
+** 关闭菜单栏
+
+#+begin_src elisp
+  (push '(menu-bar-lines . 0) default-frame-alist)
+#+end_src
+
+** 关闭工具栏
+
+#+begin_src elisp
+  (push '(tool-bar-lines . 0) default-frame-alist)
+#+end_src
+
+** 关闭滚动条
+
+#+begin_src elisp
+  (push '(vertical-scroll-bars) default-frame-alist)
+#+end_src
+
+** 启动后全屏
+
+#+begin_src elisp
+  (push '(fullscreen . fullscreen) default-frame-alist)
+#+end_src
+
+** straight 包管理
+
+#+begin_src elisp
+
+  (defvar bootstrap-version)
+  (let ((bootstrap-file
+	 (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
+	(bootstrap-version 6))
+    (unless (file-exists-p bootstrap-file)
+
+      (with-current-buffer
+	  (url-retrieve-synchronously
+	   "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
+	   'silent 'inhibit-cookies)
+	(goto-char (point-max))
+	(eval-print-last-sexp)))
+    (load bootstrap-file nil 'nomessage))
+
+  (setq straight-vc-git-default-clone-depth 1)
+
+#+end_src
+
+** 启动速度测试
+
+#+begin_src elisp
+(use-package benchmark-init
+  :straight t
+  :demand t
+  :hook (after-init . benchmark-init/deactivate)
+  :bind ("<f7>" . benchmark-init/show-durations-tree)
+  )
+
+#+end_src
+
+
+* emacs 配置
+:PROPERTIES:
+:HEADER-ARGS: :tangle init.el
+:END:
+
+#+begin_src elisp
+  ;;; init.el --- init  -*- lexical-binding: t no-byte-compile: t; -*-
+#+end_src
+
+** 载入 custom 文件
+
+#+begin_src elisp
+  (setq custom-file (expand-file-name "custom.el" user-emacs-directory))
+  (load custom-file t)
+#+end_src
+
+** 定义一些固定的常量
+#+begin_src elisp
+  (defconst sys-is-windows (memq system-type '(cygwin windows-nt ms-dos)))
+
+  ;; 动态库目录
+  (defconst my-lib-dir (expand-file-name "lib" user-emacs-directory))
+
+  ;; 外部配置文件目录
+  (defconst my-etc-dir (expand-file-name "etc" user-emacs-directory))
+
+  ;; 存放 org 文件的目录
+  (defconst my-org-dir (expand-file-name "~/Org/"))
+
+  ;; 私有文件目录
+  (defconst my-private-dir (expand-file-name "private" my-org-dir))
+
+  ;; 私有代码片段目录
+  (defconst my-private-snippets-dir (expand-file-name "snippets" my-private-dir))
+
+  ;; 存放代码的目录
+  (if sys-is-windows
+      (defconst my-code-dir (expand-file-name "D:/Code"))
+    (defconst my-code-dir (expand-file-name "~/Code")))
+
+  ;; 存放一些存档文件的目录
+  (if sys-is-windows
+      (defconst my-archives-dir (expand-file-name "D:/Archives"))
+    (defconst my-archives-dir (expand-file-name "~/Archives")))
+
+#+end_src
+
+** 常用的工具函数
+
+*** 重命名当前文件
+
+#+begin_src elisp
+  (defun my/rename-this-file-and-buffer (new-name)
+    "Rename both current buffer and file it's visiting to NEW_NAME."
+    (interactive "sNew name: ")
+    (let ((name (buffer-name))
+          (filename (buffer-file-name)))
+      (unless filename
+        (error "Buffer '%s' is not visiting a file" name))
+      (progn
+        (when (file-exists-p filename)
+          (rename-file filename new-name 1))
+        (set-visited-file-name new-name)
+        (rename-buffer new-name))))
+#+end_src
+
+*** 清理 Message buffer
+
+#+begin_src elisp
+  (defun my/clear-messages-buffer ()
+    "Clear *Messages* buffer."
+    (interactive)
+    (let ((inhibit-read-only t))
+      (with-current-buffer "*Messages*"
+        (erase-buffer))))
+#+end_src
+
+*** 开关网络代理
+
+#+begin_src elisp
+  (defun my/toggle-url-proxy ()
+    "Toggle proxy for the url.el library."
+    (interactive)
+    (require 'url)
+    (cond
+     (url-proxy-services
+      (message "Turn off URL proxy")
+      (setq url-proxy-services nil))
+     (t
+      (message "Turn on URL proxy")
+      (setq url-proxy-services
+            '(("http" . "localhost:58591")
+              ("https" . "localhost:58591")
+              ("no_proxy" . "0.0.0.0"))))))
+
+
+#+end_src
+
+*** 清理掉没用的 buffer
+
+#+begin_src elisp
+  (defun my/kill-unused-buffers ()
+    "Kill unused buffers."
+    (interactive)
+    (ignore-errors
+      (save-excursion
+        (dolist (buf (buffer-list))
+          (set-buffer buf)
+          (when (and (string-prefix-p "*" (buffer-name)) (string-suffix-p "*" (buffer-name)))
+            (kill-buffer buf))
+          ))))
+#+end_src
+
+** 基本设置
+
+*** 增加 IO 性能
+
+#+begin_src elisp
+  (setq process-adaptive-read-buffering nil)
+  (setq read-process-output-max (* 1024 1024))
+#+end_src
+
+*** 设置编码
+
+#+begin_src elisp
+  (prefer-coding-system 'utf-8)
+  (when sys-is-windows
+    (setq file-name-coding-system 'gbk))
+#+end_src
+
+*** 关闭启动动画
+
+#+begin_src elisp
+  (setq inhibit-startup-message t)
+#+end_src
+
+*** scratch buffer 设置
+
+scratch 为 fundaemental-mode
+
+#+begin_src elisp
+(setq initial-major-mode 'fundamental-mode)
+#+end_src
+
+scratch buffer 内容为空
+
+#+begin_src elisp
+  (setq initial-scratch-message nil)
+#+end_src
+
+*** yes-or-no-p 改为 y-or-n-p
+
+#+begin_src elisp
+  (setq use-short-answers t)
+#+end_src
+
+*** 关掉提示声音
+
+#+begin_src elisp
+  (setq visible-bell t)
+#+end_src
+
+** 使用 gcmh 优化垃圾回收
+
+#+begin_src elisp
+  (use-package gcmh
+    :straight t
+    :hook (emacs-startup . gcmh-mode)
+    :init
+    (setq gcmh-idle-delay 'auto
+	  gcmh-auto-idle-delay-factor 10
+	  gcmh-high-cons-threshold 33554432)) ; 32MB
+#+end_src
+
+** 自动保存 buffer
+ref: https://github.com/manateelazycat/auto-save
+
+#+begin_src elisp
+  (use-package auto-save
+    :straight (auto-save :type git :host github :repo "manateelazycat/auto-save")
+    :defer 3
+    :init
+    ;; 关闭 emacs 默认的自动备份
+    (setq make-backup-files nil)
+    ;; 关闭 emacs 默认的 自动保存
+    (setq auto-save-default nil)
+    :config
+    (setq auto-save-silent t)
+    (auto-save-enable)
+    )
+
+
+#+end_src
+
+** rime 输入法
+
+#+begin_src elisp
+  (use-package rime
+    :straight t
+    :defer t
+    :init
+    (setq rime--module-path
+	  (expand-file-name (concat "librime-emacs" module-file-suffix) my-lib-dir))
+    (when sys-is-windows
+      (setq rime-share-data-dir (expand-file-name "rime-data" my-etc-dir)))
+
+    (defun my-*require-rime(&rest _)
+      "Require rime when toggle-input-method."
+      (unless (featurep 'rime)
+	(require 'rime)))
+
+    (advice-add 'toggle-input-method :before #'my-*require-rime)
+
+    :custom
+    (default-input-method "rime")
+    (rime-show-candidate 'posframe)
+    (rime-user-data-dir (expand-file-name "rime-user" my-etc-dir))
+
+    :config
+    (setq
+     rime-disable-predicates '(meow-normal-mode-p
+			       meow-motion-mode-p
+			       meow-keypad-mode-p))
+    )
+
+#+end_src
+
+** 字体和主题
+
+#+begin_src elisp
+  (set-face-attribute 'default nil :font "Cascadia Code PL" :height 120)
+
+  (set-fontset-font t 'emoji (font-spec :family "Segoe UI Symbol"))
+
+  (set-fontset-font t 'chinese-gbk (font-spec :family "微软雅黑"))
+
+
+  (use-package modus-themes
+    :straight t
+    :config
+    (load-theme 'modus-operandi :no-confirm))
+
+#+end_src
+
+** 图标字体安装
+
+#+begin_src elisp
+    (use-package all-the-icons
+      :straight t)
+
+#+end_src
+
+** modeline 设置
+
+#+begin_src elisp
+  (use-package doom-modeline
+    :straight t
+    :config (doom-modeline-mode +1))
+
+#+end_src
+
+** 读取最近文件
+
+#+begin_src elisp
+  (use-package recentf
+    :ensure nil
+    :commands (recentf-open-files)
+    :hook (after-init . recentf-mode)
+    :init (setq recentf-max-saved-items 500
+                recentf-exclude
+                '("\\.?cache" ".cask" "url" "COMMIT_EDITMSG\\'" "bookmarks"
+                  "\\.\\(?:gz\\|gif\\|svg\\|png\\|jpe?g\\|bmp\\|xpm\\)$"
+                  "\\.?ido\\.last$" "\\.revive$" "/G?TAGS$" "/.elfeed/"
+                  "^/tmp/" "^/var/folders/.+$" ; "^/ssh:"
+                  (lambda (file) (file-in-directory-p file package-user-dir))))
+    :config
+    (push (expand-file-name recentf-save-file) recentf-exclude))
+
+#+end_src
+
+** 更方便的弹出窗口
+
+#+begin_src elisp
+  (use-package popper
+    :straight t
+    :hook (emacs-startup . popper-mode)
+    :init
+    (setq popper-reference-buffers
+	  '(
+	    help-mode
+	    rustic-cargo-run-mode
+	    lsp-bridge-ref-mode
+	    ))
+    :config
+
+    (with-no-warnings
+      (defun my-popper-fit-window-height (win)
+	"Determine the height of popup window WIN by fitting it to the buffer's content."
+	(fit-window-to-buffer
+	 win
+	 (floor (frame-height) 3)
+	 (floor (frame-height) 3)))
+      (setq popper-window-height #'my-popper-fit-window-height)
+
+      (defun popper-close-window-hack (&rest _)
+	"Close popper window via `C-g'."
+	;; `C-g' can deactivate region
+	(when (and (called-interactively-p 'interactive)
+		   (not (region-active-p))
+		   popper-open-popup-alist)
+	  (let ((window (caar popper-open-popup-alist)))
+	    (when (window-live-p window)
+	      (delete-window window)))))
+      (advice-add #'keyboard-quit :before #'popper-close-window-hack))
+    )
+
+
+#+end_src
+
+** 自动同步外部文件改变
+
+#+begin_src elisp
+  (use-package autorevert
+    :ensure nil
+    :config
+    (global-auto-revert-mode +1))
+
+#+end_src
+
+** minibuffer 补全及增强
+
+#+begin_src elisp
+  (use-package orderless
+    :straight t
+    :custom (completion-styles '(orderless)))
+
+  (use-package vertico
+    :straight t
+    :config
+    (vertico-mode +1))
+
+  (use-package marginalia
+    :straight t
+    :config
+    (marginalia-mode +1))
+
+  (use-package consult
+    :straight t
+    :commands (consult-customize)
+    :init
+    (consult-customize
+     consult-ripgrep consult-git-grep consult-grep
+     consult-bookmark consult-recent-file
+     consult--source-bookmark consult--source-recent-file
+     :preview-key (kbd "M-."))
+    :config
+    (when sys-is-windows
+      (add-to-list 'process-coding-system-alist '("es" gbk . gbk))
+      (add-to-list 'process-coding-system-alist '("explorer" gbk . gbk))
+      (setq consult-locate-args (encode-coding-string "es.exe -i -p -r" 'gbk)))
+
+    (defun consult--fd-builder (input)
+      (pcase-let* ((`(,arg . ,opts) (consult--command-split input))
+		   (`(,re . ,hl) (funcall consult--regexp-compiler
+					  arg 'extended t)))
+	(when re
+	  (list :command (append
+			  (list "fd"
+				"--color=never" "--full-path"
+				(consult--join-regexps re 'extended))
+			  opts)
+		:highlight hl))))
+
+    (defun consult-fd (&optional dir initial)
+      (interactive "P")
+      (let* ((prompt-dir (consult--directory-prompt "Fd" dir))
+	     (default-directory (cdr prompt-dir)))
+	(find-file (consult--find (car prompt-dir) #'consult--fd-builder initial))))
+    )
+#+end_src
+
+** 代码片段
+
+#+begin_src elisp
+  (use-package yasnippet
+    :straight t
+    :defer t
+    :config
+    (add-to-list 'yas-snippet-dirs my-private-snippets-dir)
+    (yas-reload-all))
+
+#+end_src
+
+** lsp-bridge 代码补全
+
+#+begin_src elisp
+
+  (use-package markdown-mode
+    :straight t
+    :defer t)
+
+  (use-package lsp-bridge
+    :straight (lsp-bridge :type git :host github :repo "manateelazycat/lsp-bridge"
+			  :files ("*")
+			  :build nil)
+    :defer t
+    :hook ((lsp-bridge-mode . my-lsp-bridge--remap-xref))
+    :init
+
+    ;; 手动添加到 load-path
+    (add-to-list 'load-path (straight--repos-dir "lsp-bridge"))
+
+    (setq lsp-bridge-org-babel-lang-list nil)
+
+    ;; https://tecosaur.github.io/emacs-config/config.html#lsp-support-src
+    (cl-defmacro my-lsp-org-babel-enable (lang)
+      "Support LANG in org source code block."
+      (cl-check-type lang string)
+      (let* ((edit-pre (intern (format "org-babel-edit-prep:%s" lang)))
+	     (intern-pre (intern (format "lsp--%s" (symbol-name edit-pre)))))
+	`(progn
+	   (defun ,intern-pre (info)
+	     (let ((file-name (->> info caddr (alist-get :file))))
+	       (unless file-name
+		 (setq file-name (expand-file-name "OrgBabel/org-src-babel" my-code-dir))
+		 (write-region (point-min) (point-max) file-name))
+	       (setq buffer-file-name file-name)
+	       (lsp-bridge-mode 1)))
+	   (put ',intern-pre 'function-documentation
+		(format "Enable lsp-bridge-mode in the buffer of org source block (%s)."
+			(upcase ,lang)))
+	   (if (fboundp ',edit-pre)
+	       (advice-add ',edit-pre :after ',intern-pre)
+	     (progn
+	       (defun ,edit-pre (info)
+		 (,intern-pre info))
+	       (put ',edit-pre 'function-documentation
+		    (format "Prepare local buffer environment for org source block (%s)."
+			    (upcase ,lang))))))))
+
+    (with-eval-after-load 'org
+      (dolist (lang '("c" "cpp" "python" "rust"))
+	(eval `(my-lsp-org-babel-enable ,lang))))
+
+
+    :config
+    (defun lsp-bridge-get-custom-server-json (project-path file-path)
+      (let ((ext (file-name-extension file-path)))
+	(cond ((member ext '("c" "cpp" "h" "hpp" "cc"))
+	       (expand-file-name  "lsp-bridge/clangd" user-emacs-directory))
+	      (t nil)
+	      )))
+
+    (setq lsp-bridge-get-single-lang-server-by-project #'lsp-bridge-get-custom-server-json)
+
+    (setq acm-enable-tabnine nil
+	  acm-enable-quick-access t
+	  lsp-bridge-enable-hover-diagnostic t)
+
+    (defun my-lsp-bridge--remap-xref()
+      "Remap xref key bind when lsp-bridge-mode enable."
+      (unless (eq major-mode 'emacs-lisp-mode)
+	(local-set-key (kbd "M-.") #'lsp-bridge-find-def)
+	(local-set-key (kbd "M-?") #'lsp-bridge-find-references)
+	(local-set-key (kbd "M-,") #'lsp-bridge-find-def-return)
+	))
+    )
+#+end_src
+
+启动 lsp-bridge
+
+#+begin_src elisp
+  (defun my-enable-lsp-bridge()
+    "Enable lsp bridge mode."
+    (require 'yasnippet)
+    (yas-minor-mode)
+    (require 'lsp-bridge)
+    (lsp-bridge-mode))
+
+
+  (add-hook 'emacs-lisp-mode-hook #'my-enable-lsp-bridge)
+#+end_src
+
+** 输入成对括号
+
+#+begin_src elisp
+  (use-package elec-pair
+    :ensure nil
+    :hook (after-init . electric-pair-mode)
+    :init (setq electric-pair-inhibit-predicate 'electric-pair-conservative-inhibit))
+#+end_src
+
+** 注释代码
+
+#+begin_src elisp
+  (use-package evil-nerd-commenter
+    :straight t
+    :bind ("C-/" . evilnc-comment-or-uncomment-lines))
+#+end_src
+
+** magit
+
+#+begin_src elisp
+  (use-package magit
+    :straight t
+    :bind ("C-x g" . magit-status)
+    :config
+    (when sys-is-windows
+      (setenv "GIT_ASKPASS" "git-gui--askpass")))
+
+  (use-package ssh-agency
+    :straight t
+    :after magit)
+#+end_src
+
+** 启用 treesit
+
+#+begin_src elisp
+  (setq major-mode-remap-alist
+		'((c-mode          . c-ts-mode)
+		  (c++-mode        . c++-ts-mode)
+		  (cmake-mode      . cmake-ts-mode)
+		  (conf-toml-mode  . toml-ts-mode)
+		  (csharp-mode     . csharp-ts-mode)
+		  (css-mode        . css-ts-mode)
+		  (dockerfile-mode . dockerfile-ts-mode)
+		  (go-mode         . go-ts-mode)
+		  (java-mode       . java-ts-mode)
+		  (json-mode       . json-ts-mode)
+		  (js-json-mode    . json-ts-mode)
+		  (js-mode         . js-ts-mode)
+		  (python-mode     . python-ts-mode)
+		  (rust-mode       . rust-ts-mode)
+		  (sh-mode         . bash-ts-mode)
+		  (typescript-mode . typescript-ts-mode)))
+#+end_src
+
+** C 开发配置
+
+#+begin_src elisp
+  (use-package c-ts-mode
+    :ensure nil
+    :hook (c++-ts-mode . my-enable-cc-dev)
+    :custom
+    (c-ts-mode-indent-offset  4)
+    :config
+    (defun my-enable-cc-dev()
+      (setq-local lsp-bridge-completion-hide-characters '(";" "(" ")" "[" "]" "{" "}" "," "\""))
+      (my-enable-lsp-bridge)
+      )
+    )
+#+end_src
+
+** json mode
+
+#+begin_src elisp
+  (use-package json-js-mode
+    :defer t
+    :ensure nil
+    :custom
+    (json-ts-mode-indent-offset 4))
+#+end_src
+
+** dap-mode 配置
+
+#+begin_src elisp
+  (use-package dap-mode
+    :straight t
+    :defer t
+    :config
+
+    ;; fix runInTerminal
+    (defun dap--start-process (debug-session parsed-msg)
+      (-let* (((&hash "arguments" (&hash? "args" "cwd" "title" "kind") "seq")
+	       parsed-msg)
+	      (default-directory cwd)
+	      (command-to-run (combine-and-quote-strings args " "))
+	      (kind (or kind dap-default-terminal-kind)))
+	(or
+	 (when (string= kind "external")
+	   (let* ((name (or title (concat (dap--debug-session-name debug-session)
+					  "- terminal")))
+		  (terminal-argv
+		   (cl-loop for part in dap-external-terminal collect
+			    (->> part (s-replace "{display}" name)
+				 (s-replace "{command}" command-to-run)))))
+	     (when
+		 (condition-case-unless-debug err
+		     (progn (apply #'start-process name name terminal-argv) t)
+		   (error (lsp--warn
+			   "dap-debug: failed to start external
+  terminal: %S (launch command was: \"%s\"). Set
+  `dap-external-terminal' to the correct value or install the
+  terminal configured (probably xterm)."
+			   (error-message-string err)
+			   (mapconcat #'shell-quote-argument terminal-argv " "))
+			  ;; we did *not* succeed; use the integrated terminal
+			  ;; instead
+			  nil))
+	       ;; NOTE: we cannot know the process id of the started
+	       ;; application.
+	       (dap--send-message (dap--make-success-response
+				   seq "runInTerminal" (make-hash-table :test 'equal))
+				  ;; NOTE: assuming that the terminal starts the
+				  ;; application without another subshell
+				  (dap--resp-handler) debug-session)
+	       ;; success; don't use the integrated terminal
+	       t)))
+	 ;; integrated terminal *or* the external terminal could not be executed
+	 ;; (file error).
+	 (when (or (string= kind "integrated") (string= kind "external"))
+	   (funcall dap-internal-terminal command-to-run title debug-session)
+	   ;; NOTE: we don't know the PID of the shell that ran the process and we
+	   ;; don't know the PID of the started process.
+	   (dap--send-message (dap--make-success-response seq "runInTerminal" (make-hash-table :test 'equal))
+			      (dap--resp-handler) debug-session)
+	   ;; success
+	   t)
+	 (dap--send-message (dap--make-error-response
+			     seq "runInTerminal" nil
+			     (format "unknown terminal kind %s" kind))
+			    (dap--resp-handler) debug-session))))
+
+      ;; codelldb
+    (require 'dap-codelldb)
+
+    (defun my-dap--get-program-from-cargo-config(conf)
+      "Get program from cargo config."
+      (when-let* ((cwd (plist-get conf :cwd))
+		  (cargo (plist-get conf :cargo))
+		  (args (plist-get cargo :args)))
+	(let* ((default-directory cwd)
+	       (command (format "cargo %s --message-format=json" (mapconcat 'identity args " ")))
+	       (output (shell-command-to-string command))
+	       (lines (split-string output "\n"))
+	       (msg)
+	       (artifacts))
+	  (dolist (line lines)
+	    (setq msg (ignore-errors (json-parse-string line)))
+	    (when (and msg (string-equal (gethash "reason" msg) "compiler-artifact"))
+	      (let* ((target (gethash "target" msg))
+		     (is-binary (member "bin" (append (gethash "crate_types" target) nil)))
+		     (kind (gethash "kind" target))
+		     (is-build-script (member "custom-build" (append kind nil)))
+		     (profile-test (gethash "test" (gethash "profile" msg)))
+		     (name (gethash "name" target))
+		     (executable (gethash "executable" msg)))
+		(when (or (and is-binary (not is-build-script)) profile-test)
+		  (push `(:filename ,executable :name ,name :kind ,(aref kind 0)) artifacts)))))
+
+	  (let* ((filter (plist-get cargo :filter))
+		 (filter-name (plist-get filter :name))
+		 (filter-kind (plist-get filter :kind))
+		 (filtered-artifacts))
+	    (if (not (and filter filter-name filter-kind))
+		(setq filtered-artifacts (copy-tree artifacts))
+	      (dolist (artifact artifacts)
+		(when (and (string= filter-name (plist-get artifact :name))
+			   (string= filter-kind (plist-get artifact :kind))
+			   )
+		  (push artifact filtered-artifacts)
+		  )))
+	    (if (length= filtered-artifacts 1)
+		(plist-get (car filtered-artifacts) :filename)
+	      (message "Cargo artifact error, check launch.json.")
+	      nil)))))
+
+    (defun my-dap--get-codelldb-params (conf)
+      ""
+      (let ((params (make-hash-table :test 'equal)))
+	(puthash "evaluateForHovers" 't params)
+	(puthash "commandCompletions" 't params)
+	(when (plist-get conf :cargo)
+	  (puthash "sourceLanguages" (vector "rust") params)
+	  )
+	(json-encode (json-encode params))))
+
+    (defun dap-codelldb--populate-lldb (conf)
+      "Populate CONF with the required arguments."
+      (let ((debug-port (dap--find-available-port)))
+	(-> conf
+	    (dap--put-if-absent :type "lldb")
+	    (dap--put-if-absent :host "localhost")
+	    (dap--put-if-absent :debugServer debug-port)
+	    (dap--put-if-absent :program-to-start
+				(format "%s --port %s --params %s"
+					dap-codelldb-debug-program
+					debug-port
+					(my-dap--get-codelldb-params conf)
+					))
+	    (dap--put-if-absent :cwd default-directory)
+	    (dap--put-if-absent :program (or (my-dap--get-program-from-cargo-config conf) (expand-file-name (read-file-name "Select file to debug: "))))
+	    )))
+
+    (dap-register-debug-provider "lldb" 'dap-codelldb--populate-lldb)
+
+    (add-hook 'dap-stopped-hook
+	      (lambda (arg) (call-interactively #'dap-hydra)))
+
+    (dap-auto-configure-mode +1)
+    )
+
+#+end_src
+
+** org mode 配置
+
+#+begin_src elisp
+  (use-package org
+    :defer t
+    :ensure nil
+    :config
+    (require 'org-tempo)
+    )
+#+end_src
+** 按键提示
+
+#+begin_src elisp
+  (use-package which-key
+    :straight t
+    :hook (after-init . which-key-mode))
+#+end_src
+
+** 卸载默认的键绑定
+
+ref: https://github.com/manateelazycat/lazy-load
+
+#+begin_src elisp
+  (defun lazy-load-unset-keys (key-list &optional keymap)
+    "This function is to little type when unset key binding.
+  `KEYMAP' is add keymap for some binding, default is `current-global-map'
+  `KEY-LIST' is list contain key."
+    (let (key)
+      (or keymap (setq keymap (current-global-map)))
+      (dolist (key key-list)
+	(cond ((stringp key) (setq key (read-kbd-macro (concat key))))
+	      ((vectorp key) nil)
+	      (t (signal 'wrong-type-argument (list 'array key))))
+	(define-key keymap key nil))))
+
+  (lazy-load-unset-keys
+   '("C-s"
+     "C-x b"
+     ))
+#+end_src
+
+** meow 模式编辑
+
+#+begin_src elisp
+  (use-package meow
+    :straight t
+    :demand t
+    :hook (after-init . meow-global-mode)
+    :config
+    (setq meow-cheatsheet-layout meow-cheatsheet-layout-qwerty)
+
+    (setq meow-char-thing-table
+	  '((?r . round)
+	    (?s . string)))
+
+    (setq meow-use-clipboard t)
+
+    (meow-leader-define-key
+     ;; Use SPC (0-9) for digit arguments.
+     '("1" . meow-digit-argument)
+     '("2" . meow-digit-argument)
+     '("3" . meow-digit-argument)
+     '("4" . meow-digit-argument)
+     '("5" . meow-digit-argument)
+     '("6" . meow-digit-argument)
+     '("7" . meow-digit-argument)
+     '("8" . meow-digit-argument)
+     '("9" . meow-digit-argument)
+     '("0" . meow-digit-argument)
+     '("?" . meow-cheatsheet)
+
+     '("f" . consult-fd)
+     '("b" . consult-buffer)
+     '("r" . consult-ripgrep)
+     '("s" . consult-line)
+     )
+
+    (meow-normal-define-key
+     ;; char move
+     '("j" . meow-next)
+     '("J" . meow-next-expand)
+     '("k" . meow-prev)
+     '("K" . meow-prev-expand)
+     '("l" . meow-right)
+     '("L" . meow-right-expand)
+     '("h" . meow-left)
+     '("H" . meow-left-expand)
+
+     ;; word move
+     '("e" . meow-next-word)
+     '("E" . meow-next-symbol)
+     '("b" . meow-back-word)
+     '("B" . meow-back-symbol)
+
+     ;; line move
+     '("x" . meow-line)
+     '("X" . meow-goto-line)
+
+     ;; thing move
+     '("," . meow-inner-of-thing)
+     '("." . meow-bounds-of-thing)
+     '("[" . meow-beginning-of-thing)
+     '("]" . meow-end-of-thing)
+     '("o" . meow-block)
+     '("O" . meow-to-block)
+
+     ;; jump
+     '("n" . meow-search)
+     '("f" . meow-find)
+     '("v" . meow-visit)
+
+     ;; action
+     '("i" . meow-insert)
+     '("I" . meow-open-above)
+     '("a" . meow-append)
+     '("A" . meow-open-below)
+     '("y" . meow-save)
+     '("Y" . meow-sync-grab)
+     '("c" . meow-change)
+     '("r" . meow-replace)
+     '("R" . meow-swap-grab)
+     '("p" . meow-yank)
+     '("s" . meow-kill)
+     '("d" . meow-delete)
+     '("D" . meow-backward-delete)
+     '("G" . meow-grab)
+     '("m" . meow-join)
+     '("t" . meow-till)
+     '("u" . undo)
+     '("U" . meow-undo)
+     '("w" . meow-mark-word)
+     '("W" . meow-mark-symbol)
+     '("z" . meow-pop-selection)
+
+     ;; others
+     '("0" . meow-expand-0)
+     '("9" . meow-expand-9)
+     '("8" . meow-expand-8)
+     '("7" . meow-expand-7)
+     '("6" . meow-expand-6)
+     '("5" . meow-expand-5)
+     '("4" . meow-expand-4)
+     '("3" . meow-expand-3)
+     '("2" . meow-expand-2)
+     '("1" . meow-expand-1)
+     '("-" . negative-argument)
+     '(";" . meow-reverse)
+     '("g" . meow-cancel-selection)
+     '("q" . meow-quit)
+     '("'" . repeat)
+     '("<escape>" . ignore)
+     )
+    )
+#+end_src
+
+** 启动 emacs server
+
+#+begin_src elisp
+  (setq server-name "emacs-server-file")
+  (ignore-errors
+    (server-start))
+#+end_src
+
+** 将输入法切换到英文
+
+#+begin_src elisp
+  (when sys-is-windows
+    (start-process "im-select" nil "im-select" "1033"))
+#+end_src

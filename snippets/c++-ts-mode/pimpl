@@ -1,0 +1,19 @@
+# -*- mode: snippet -*-
+# name: pimpl
+# key: pimpl
+# --
+class ${1:Name} {
+public:
+    $1($0);
+    ~$1();
+
+    $1(const $1&) = delete;
+    $1& operator=(const $1&) = delete;
+
+    $1($1&&);
+    $1& operator=($1&&);
+
+private:
+    class $1Impl;
+    std::unique_ptr<$1Impl> pimpl_;
+};

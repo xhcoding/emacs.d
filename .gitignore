@@ -14,3 +14,4 @@ projects
 .dap-breakpoints
 /straight
 /tree-sitter
+.lsp-session-v1

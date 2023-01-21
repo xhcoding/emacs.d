@@ -97,7 +97,6 @@ Emacs 启动过程的早期加载。
 
 #+end_src
 
-
 * emacs 配置
 :PROPERTIES:
 :HEADER-ARGS: :tangle init.el
@@ -212,6 +211,12 @@ Emacs 启动过程的早期加载。
 #+end_src
 
 ** 基本设置
+*** 用户信息
+
+#+begin_src elisp
+  (setq user-full-name "xhcoding"
+	user-mail-address "xhcoding@foxmail.com")
+#+end_src
 
 *** 增加 IO 性能
 
@@ -222,10 +227,17 @@ Emacs 启动过程的早期加载。
 
 *** 设置编码
 
+默认使用 utf-8 ，在 windows 文件名编码使用 gbk ，不然打不开中文文件
 #+begin_src elisp
   (prefer-coding-system 'utf-8)
   (when sys-is-windows
     (setq file-name-coding-system 'gbk))
+#+end_src
+
+python 默认使用 UTF8 编码
+
+#+begin_src elisp
+  (setenv "PYTHONUTF8" "1")
 #+end_src
 
 *** 关闭启动动画
@@ -258,6 +270,44 @@ scratch buffer 内容为空
 
 #+begin_src elisp
   (setq visible-bell t)
+#+end_src
+
+*** 禁止光标闪烁
+
+#+begin_src elisp
+  (blink-cursor-mode -1)
+#+end_src
+
+*** 启动时不要显示 For information about GNU Emacs...
+
+#+begin_src elisp
+  (advice-add #'display-startup-echo-area-message :override #'ignore)
+#+end_src
+
+*** tab 设置
+
+#+begin_src elisp
+  (setq-default tab-width 4)
+
+  (setq-default indent-tabs-mode nil)
+#+end_src
+
+*** 一行不超过 120 字符
+
+#+begin_src elisp
+  (setq-default fill-column 120)
+#+end_src
+
+*** 删除文件时放到回收站
+
+#+begin_src elisp
+(setq-default delete-by-moving-to-trash t)
+#+end_src
+
+*** 高亮当前行
+
+#+begin_src elisp
+(global-hl-line-mode +1)
 #+end_src
 
 ** 使用 gcmh 优化垃圾回收
@@ -338,7 +388,8 @@ ref: https://github.com/manateelazycat/auto-save
   (use-package modus-themes
     :straight t
     :config
-    (load-theme 'modus-operandi :no-confirm))
+    (load-theme 'modus-operandi :no-confirm)
+    )
 
 #+end_src
 
@@ -356,6 +407,35 @@ ref: https://github.com/manateelazycat/auto-save
   (use-package doom-modeline
     :straight t
     :config (doom-modeline-mode +1))
+
+#+end_src
+
+** hydra 方便的快捷键设置
+
+#+begin_src elisp
+  (use-package hydra
+    :straight t
+    :defer t)
+
+  (use-package pretty-hydra
+    :straight t
+    :after hydra
+    :init
+    (cl-defun pretty-hydra-title (title &optional icon-type icon-name
+                                        &key face height v-adjust)
+      "Add an icon in the hydra title."
+      (let ((face (or face `(:foreground ,(face-background 'highlight))))
+            (height (or height 1.0))
+            (v-adjust (or v-adjust 0.0)))
+        (concat
+         (when (and (icon-displayable-p) icon-type icon-name)
+           (let ((f (intern (format "all-the-icons-%s" icon-type))))
+             (when (fboundp f)
+               (concat
+                (apply f (list icon-name :face face :height height :v-adjust v-adjust))
+                " "))))
+         (propertize title 'face face))))
+    )
 
 #+end_src
 
@@ -479,6 +559,69 @@ ref: https://github.com/manateelazycat/auto-save
     )
 #+end_src
 
+** avy 快速移动光标到屏幕上任意字符
+
+#+begin_src elisp
+  (use-package pinyinlib
+    :straight t
+    :defer t)
+
+  (use-package avy
+    :straight t
+    :bind (("M-;" . my/avy-goto-char-timer))
+    :init
+    (defun my/avy-goto-char-timer (&optional arg)
+      "Make avy-goto-char-timer support pinyin"
+      (interactive "P")
+      (require 'pinyinlib)
+      (require 'avy)
+      (let ((avy-all-windows (if arg
+                                 (not avy-all-windows)
+                               avy-all-windows)))
+        (avy-with avy-goto-char-timer
+          (setq avy--old-cands (avy--read-candidates
+                                'pinyinlib-build-regexp-string))
+          (avy-process avy--old-cands))))
+
+
+    :config
+    (setq avy-all-windows nil
+          avy-all-windows-alt t
+          avy-background t
+          avy-style 'pre))
+#+end_src
+
+** ace-window 快速切换到其它 window
+
+#+begin_src elisp
+  (use-package ace-window
+    :straight t
+    :bind (("M-'" . ace-window)))
+#+end_src
+
+** 快速切换到单窗口
+
+ref:https://github.com/manateelazycat/toggle-one-window 
+
+#+begin_src elisp
+  (defvar my--window-configuration nil
+    "The window configuration use for `toggle-one-window'.")
+
+  (defun my/toggle-one-window ()
+    "Toggle between window layout and one window."
+    (interactive)
+    (if (equal (length (cl-remove-if #'window-dedicated-p (window-list))) 1)
+        (if my--window-configuration
+            (progn
+              (set-window-configuration my--window-configuration)
+              (setq my--window-configuration nil))
+          (message "No other windows exist."))
+      (setq my--window-configuration (current-window-configuration))
+      (delete-other-windows)))
+
+  (global-set-key (kbd "M-o") #'my/toggle-one-window)
+#+end_src
+
 ** 代码片段
 
 #+begin_src elisp
@@ -590,6 +733,14 @@ ref: https://github.com/manateelazycat/auto-save
     :init (setq electric-pair-inhibit-predicate 'electric-pair-conservative-inhibit))
 #+end_src
 
+** 高亮外层括号
+
+#+begin_src elisp
+  (use-package highlight-parentheses
+    :straight t
+    :hook (emacs-lisp-mode . highlight-parentheses-mode))
+#+end_src
+
 ** 注释代码
 
 #+begin_src elisp
@@ -611,6 +762,27 @@ ref: https://github.com/manateelazycat/auto-save
   (use-package ssh-agency
     :straight t
     :after magit)
+#+end_src
+
+** 可视化的正则替换
+
+#+begin_src elisp
+  (use-package visual-regexp
+    :straight t
+    :defer t)
+#+end_src
+
+** openwith 外部工具打开文件
+
+#+begin_src elisp
+  (use-package openwith
+    :straight t
+    :custom
+    (openwith-associations
+     '(("\\.\\(doc\\|docs\\|xls\\|xlsx\\|ppt\\|pptx\\)$"
+          "explorer.exe" (file))))
+    :config
+    (openwith-mode +1))
 #+end_src
 
 ** 启用 treesit
@@ -635,7 +807,7 @@ ref: https://github.com/manateelazycat/auto-save
 		  (typescript-mode . typescript-ts-mode)))
 #+end_src
 
-** C 开发配置
+** C++ 开发配置
 
 #+begin_src elisp
   (use-package c-ts-mode
@@ -651,7 +823,14 @@ ref: https://github.com/manateelazycat/auto-save
     )
 #+end_src
 
-** json mode
+** Rust 开发配置
+
+#+begin_src elisp
+  (use-package rust-ts-mode
+    :hook (rust-ts-mode . my-enable-lsp-bridge))
+#+end_src
+
+** json-mode
 
 #+begin_src elisp
   (use-package json-js-mode
@@ -672,54 +851,54 @@ ref: https://github.com/manateelazycat/auto-save
     ;; fix runInTerminal
     (defun dap--start-process (debug-session parsed-msg)
       (-let* (((&hash "arguments" (&hash? "args" "cwd" "title" "kind") "seq")
-	       parsed-msg)
-	      (default-directory cwd)
-	      (command-to-run (combine-and-quote-strings args " "))
-	      (kind (or kind dap-default-terminal-kind)))
-	(or
-	 (when (string= kind "external")
-	   (let* ((name (or title (concat (dap--debug-session-name debug-session)
-					  "- terminal")))
-		  (terminal-argv
-		   (cl-loop for part in dap-external-terminal collect
-			    (->> part (s-replace "{display}" name)
-				 (s-replace "{command}" command-to-run)))))
-	     (when
-		 (condition-case-unless-debug err
-		     (progn (apply #'start-process name name terminal-argv) t)
-		   (error (lsp--warn
-			   "dap-debug: failed to start external
+           parsed-msg)
+          (default-directory cwd)
+          (command-to-run (combine-and-quote-strings args " "))
+          (kind (or kind dap-default-terminal-kind)))
+    (or
+     (when (string= kind "external")
+       (let* ((name (or title (concat (dap--debug-session-name debug-session)
+                      "- terminal")))
+          (terminal-argv
+           (cl-loop for part in dap-external-terminal collect
+                (->> part (s-replace "{display}" name)
+                 (s-replace "{command}" command-to-run)))))
+         (when
+         (condition-case-unless-debug err
+             (progn (apply #'start-process name name terminal-argv) t)
+           (error (lsp--warn
+               "dap-debug: failed to start external
   terminal: %S (launch command was: \"%s\"). Set
   `dap-external-terminal' to the correct value or install the
   terminal configured (probably xterm)."
-			   (error-message-string err)
-			   (mapconcat #'shell-quote-argument terminal-argv " "))
-			  ;; we did *not* succeed; use the integrated terminal
-			  ;; instead
-			  nil))
-	       ;; NOTE: we cannot know the process id of the started
-	       ;; application.
-	       (dap--send-message (dap--make-success-response
-				   seq "runInTerminal" (make-hash-table :test 'equal))
-				  ;; NOTE: assuming that the terminal starts the
-				  ;; application without another subshell
-				  (dap--resp-handler) debug-session)
-	       ;; success; don't use the integrated terminal
-	       t)))
-	 ;; integrated terminal *or* the external terminal could not be executed
-	 ;; (file error).
-	 (when (or (string= kind "integrated") (string= kind "external"))
-	   (funcall dap-internal-terminal command-to-run title debug-session)
-	   ;; NOTE: we don't know the PID of the shell that ran the process and we
-	   ;; don't know the PID of the started process.
-	   (dap--send-message (dap--make-success-response seq "runInTerminal" (make-hash-table :test 'equal))
-			      (dap--resp-handler) debug-session)
-	   ;; success
-	   t)
-	 (dap--send-message (dap--make-error-response
-			     seq "runInTerminal" nil
-			     (format "unknown terminal kind %s" kind))
-			    (dap--resp-handler) debug-session))))
+               (error-message-string err)
+               (mapconcat #'shell-quote-argument terminal-argv " "))
+              ;; we did *not* succeed; use the integrated terminal
+              ;; instead
+              nil))
+           ;; NOTE: we cannot know the process id of the started
+           ;; application.
+           (dap--send-message (dap--make-success-response
+                   seq "runInTerminal" (make-hash-table :test 'equal))
+                  ;; NOTE: assuming that the terminal starts the
+                  ;; application without another subshell
+                  (dap--resp-handler) debug-session)
+           ;; success; don't use the integrated terminal
+           t)))
+     ;; integrated terminal *or* the external terminal could not be executed
+     ;; (file error).
+     (when (or (string= kind "integrated") (string= kind "external"))
+       (funcall dap-internal-terminal command-to-run title debug-session)
+       ;; NOTE: we don't know the PID of the shell that ran the process and we
+       ;; don't know the PID of the started process.
+       (dap--send-message (dap--make-success-response seq "runInTerminal" (make-hash-table :test 'equal))
+                  (dap--resp-handler) debug-session)
+       ;; success
+       t)
+     (dap--send-message (dap--make-error-response
+                 seq "runInTerminal" nil
+                 (format "unknown terminal kind %s" kind))
+                (dap--resp-handler) debug-session))))
 
       ;; codelldb
     (require 'dap-codelldb)
@@ -727,82 +906,107 @@ ref: https://github.com/manateelazycat/auto-save
     (defun my-dap--get-program-from-cargo-config(conf)
       "Get program from cargo config."
       (when-let* ((cwd (plist-get conf :cwd))
-		  (cargo (plist-get conf :cargo))
-		  (args (plist-get cargo :args)))
-	(let* ((default-directory cwd)
-	       (command (format "cargo %s --message-format=json" (mapconcat 'identity args " ")))
-	       (output (shell-command-to-string command))
-	       (lines (split-string output "\n"))
-	       (msg)
-	       (artifacts))
-	  (dolist (line lines)
-	    (setq msg (ignore-errors (json-parse-string line)))
-	    (when (and msg (string-equal (gethash "reason" msg) "compiler-artifact"))
-	      (let* ((target (gethash "target" msg))
-		     (is-binary (member "bin" (append (gethash "crate_types" target) nil)))
-		     (kind (gethash "kind" target))
-		     (is-build-script (member "custom-build" (append kind nil)))
-		     (profile-test (gethash "test" (gethash "profile" msg)))
-		     (name (gethash "name" target))
-		     (executable (gethash "executable" msg)))
-		(when (or (and is-binary (not is-build-script)) profile-test)
-		  (push `(:filename ,executable :name ,name :kind ,(aref kind 0)) artifacts)))))
+          (cargo (plist-get conf :cargo))
+          (args (plist-get cargo :args)))
+    (let* ((default-directory cwd)
+           (command (format "cargo %s --message-format=json" (mapconcat 'identity args " ")))
+           (output (shell-command-to-string command))
+           (lines (split-string output "\n"))
+           (msg)
+           (artifacts))
+      (dolist (line lines)
+        (setq msg (ignore-errors (json-parse-string line)))
+        (when (and msg (string-equal (gethash "reason" msg) "compiler-artifact"))
+          (let* ((target (gethash "target" msg))
+             (is-binary (member "bin" (append (gethash "crate_types" target) nil)))
+             (kind (gethash "kind" target))
+             (is-build-script (member "custom-build" (append kind nil)))
+             (profile-test (gethash "test" (gethash "profile" msg)))
+             (name (gethash "name" target))
+             (executable (gethash "executable" msg)))
+        (when (or (and is-binary (not is-build-script)) profile-test)
+          (push `(:filename ,executable :name ,name :kind ,(aref kind 0)) artifacts)))))
 
-	  (let* ((filter (plist-get cargo :filter))
-		 (filter-name (plist-get filter :name))
-		 (filter-kind (plist-get filter :kind))
-		 (filtered-artifacts))
-	    (if (not (and filter filter-name filter-kind))
-		(setq filtered-artifacts (copy-tree artifacts))
-	      (dolist (artifact artifacts)
-		(when (and (string= filter-name (plist-get artifact :name))
-			   (string= filter-kind (plist-get artifact :kind))
-			   )
-		  (push artifact filtered-artifacts)
-		  )))
-	    (if (length= filtered-artifacts 1)
-		(plist-get (car filtered-artifacts) :filename)
-	      (message "Cargo artifact error, check launch.json.")
-	      nil)))))
+      (let* ((filter (plist-get cargo :filter))
+         (filter-name (plist-get filter :name))
+         (filter-kind (plist-get filter :kind))
+         (filtered-artifacts))
+        (if (not (and filter filter-name filter-kind))
+        (setq filtered-artifacts (copy-tree artifacts))
+          (dolist (artifact artifacts)
+        (when (and (string= filter-name (plist-get artifact :name))
+               (string= filter-kind (plist-get artifact :kind))
+               )
+          (push artifact filtered-artifacts)
+          )))
+        (if (length= filtered-artifacts 1)
+        (plist-get (car filtered-artifacts) :filename)
+          (message "Cargo artifact error, check launch.json.")
+          nil)))))
 
     (defun my-dap--get-codelldb-params (conf)
       ""
       (let ((params (make-hash-table :test 'equal)))
-	(puthash "evaluateForHovers" 't params)
-	(puthash "commandCompletions" 't params)
-	(when (plist-get conf :cargo)
-	  (puthash "sourceLanguages" (vector "rust") params)
-	  )
-	(json-encode (json-encode params))))
+    (puthash "evaluateForHovers" 't params)
+    (puthash "commandCompletions" 't params)
+    (when (plist-get conf :cargo)
+      (puthash "sourceLanguages" (vector "rust") params)
+      )
+    (json-encode (json-encode params))))
 
     (defun dap-codelldb--populate-lldb (conf)
       "Populate CONF with the required arguments."
       (let ((debug-port (dap--find-available-port)))
-	(-> conf
-	    (dap--put-if-absent :type "lldb")
-	    (dap--put-if-absent :host "localhost")
-	    (dap--put-if-absent :debugServer debug-port)
-	    (dap--put-if-absent :program-to-start
-				(format "%s --port %s --params %s"
-					dap-codelldb-debug-program
-					debug-port
-					(my-dap--get-codelldb-params conf)
-					))
-	    (dap--put-if-absent :cwd default-directory)
-	    (dap--put-if-absent :program (or (my-dap--get-program-from-cargo-config conf) (expand-file-name (read-file-name "Select file to debug: "))))
-	    )))
+    (-> conf
+        (dap--put-if-absent :type "lldb")
+        (dap--put-if-absent :host "localhost")
+        (dap--put-if-absent :debugServer debug-port)
+        (dap--put-if-absent :program-to-start
+                (format "%s --port %s --params %s"
+                    dap-codelldb-debug-program
+                    debug-port
+                    (my-dap--get-codelldb-params conf)
+                    ))
+        (dap--put-if-absent :cwd default-directory)
+        (dap--put-if-absent :program (or (my-dap--get-program-from-cargo-config conf) (expand-file-name (read-file-name "Select file to debug: "))))
+        )))
 
     (dap-register-debug-provider "lldb" 'dap-codelldb--populate-lldb)
 
     (add-hook 'dap-stopped-hook
-	      (lambda (arg) (call-interactively #'dap-hydra)))
+          (lambda (arg) (call-interactively #'dap-hydra)))
 
     (dap-auto-configure-mode +1)
+
     )
 
 #+end_src
 
-** org mode 配置
+下面的 wrapper 可以在不启动 lsp-mode 的情况下通过 lsp-workspace-root 获取正确的值
+
+#+begin_src elisp
+  (eval-and-compile
+    (defun my--ensure-lsp-workspace-root()
+      "Ensure `lsp-workspace-root' valid."
+      (require 'lsp-mode)
+      (unless (lsp-workspace-root)
+        (let* ((session (lsp-session))
+               (lsp-auto-guess-root t)
+               (project-root (lsp-f-canonical (lsp--calculate-root session (buffer-file-name)))))
+          (cl-pushnew project-root (lsp-session-folders session))
+          (lsp--persist-session session)
+          ))))
+
+  (defun my/dap-debug()
+    "dap-debug wrapper."
+    (interactive)
+    (require 'dap-mode)
+    (my--ensure-lsp-workspace-root)
+    (call-interactively #'dap-debug)
+    )
+#+end_src
+
+** org-mode 配置
 
 #+begin_src elisp
   (use-package org
@@ -854,8 +1058,9 @@ ref: https://github.com/manateelazycat/lazy-load
     (setq meow-cheatsheet-layout meow-cheatsheet-layout-qwerty)
 
     (setq meow-char-thing-table
-	  '((?r . round)
-	    (?s . string)))
+      '((?r . round)
+        (?s . string)
+        (?b . buffer)))
 
     (setq meow-use-clipboard t)
 
@@ -877,6 +1082,11 @@ ref: https://github.com/manateelazycat/lazy-load
      '("b" . consult-buffer)
      '("r" . consult-ripgrep)
      '("s" . consult-line)
+
+     '("/" . evilnc-comment-or-uncomment-lines)
+
+     '("w3" . split-window-right)
+     '("w0" . delete-other-windows)
      )
 
     (meow-normal-define-key

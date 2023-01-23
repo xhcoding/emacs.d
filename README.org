@@ -1,5 +1,3 @@
-#+STARTUP: overview
-
 * 安装方法
 
 1. 下载配置文件
@@ -163,6 +161,20 @@ Emacs 启动过程的早期加载。
         (rename-buffer new-name))))
 #+end_src
 
+*** 删除当前文件
+
+#+begin_src emacs-lisp
+  (defun my/delete-file-and-buffer ()
+    "Kill the current buffer and deletes the file it is visiting."
+    (interactive)
+    (let ((filename (buffer-file-name)))
+      (when (and filename (y-or-n-p (concat "Do you really want to delete file " filename "?")))
+        (delete-file filename t)
+        (message "Deleted file %s." filename)
+        (kill-buffer)
+        )))
+#+end_src
+
 *** 清理 Message buffer
 
 #+begin_src elisp
@@ -238,6 +250,12 @@ python 默认使用 UTF8 编码
 
 #+begin_src elisp
   (setenv "PYTHONUTF8" "1")
+#+end_src
+
+*** 设置 frame 标题
+
+#+begin_src emacs-lisp
+  (setq frame-title-format "Emacs")
 #+end_src
 
 *** 关闭启动动画
@@ -414,8 +432,7 @@ ref: https://github.com/manateelazycat/auto-save
 
 #+begin_src elisp
   (use-package hydra
-    :straight t
-    :defer t)
+    :straight t)
 
   (use-package pretty-hydra
     :straight t
@@ -428,7 +445,7 @@ ref: https://github.com/manateelazycat/auto-save
             (height (or height 1.0))
             (v-adjust (or v-adjust 0.0)))
         (concat
-         (when (and (icon-displayable-p) icon-type icon-name)
+         (when (and icon-type icon-name)
            (let ((f (intern (format "all-the-icons-%s" icon-type))))
              (when (fboundp f)
                (concat
@@ -443,7 +460,6 @@ ref: https://github.com/manateelazycat/auto-save
 
 #+begin_src elisp
   (use-package recentf
-    :ensure nil
     :commands (recentf-open-files)
     :hook (after-init . recentf-mode)
     :init (setq recentf-max-saved-items 500
@@ -501,7 +517,6 @@ ref: https://github.com/manateelazycat/auto-save
 
 #+begin_src elisp
   (use-package autorevert
-    :ensure nil
     :config
     (global-auto-revert-mode +1))
 
@@ -568,7 +583,7 @@ ref: https://github.com/manateelazycat/auto-save
 
   (use-package avy
     :straight t
-    :bind (("M-;" . my/avy-goto-char-timer))
+    :bind (("M-'" . my/avy-goto-char-timer))
     :init
     (defun my/avy-goto-char-timer (&optional arg)
       "Make avy-goto-char-timer support pinyin"
@@ -596,12 +611,12 @@ ref: https://github.com/manateelazycat/auto-save
 #+begin_src elisp
   (use-package ace-window
     :straight t
-    :bind (("M-'" . ace-window)))
+    :bind (("M-o" . ace-window)))
 #+end_src
 
 ** 快速切换到单窗口
 
-ref:https://github.com/manateelazycat/toggle-one-window 
+ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (defvar my--window-configuration nil
@@ -619,7 +634,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
       (setq my--window-configuration (current-window-configuration))
       (delete-other-windows)))
 
-  (global-set-key (kbd "M-o") #'my/toggle-one-window)
+  (global-set-key (kbd "M-;") #'my/toggle-one-window)
 #+end_src
 
 ** 代码片段
@@ -634,6 +649,32 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+end_src
 
+** project 设置
+
+#+begin_src elisp
+  (use-package project
+    :defer t
+    :custom
+    (project-switch-commands #'project-find-file)
+    :config
+    (defun my--project-files-in-directory (dir)
+      "Use `fd' to list files in DIR."
+      (let* ((default-directory dir)
+             (localdir (file-local-name (expand-file-name dir)))
+             (command (format "fd . --color=never --type f -0 -H -E .git --path-separator=/ %s" localdir)))
+        (project--remote-file-names
+         (sort (split-string (shell-command-to-string command) "\0" t)
+               #'string<))))
+
+    ;; (head vc) 表示对于所有 vc 项目
+    (cl-defmethod project-files ((project (head vc)) &optional dirs)
+      "Override `project-files' to use `fd' in vc projects."
+      (mapcan #'my--project-files-in-directory
+              (or dirs (list (project-root project))))))
+
+
+#+end_src
+
 ** lsp-bridge 代码补全
 
 #+begin_src elisp
@@ -644,8 +685,8 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
   (use-package lsp-bridge
     :straight (lsp-bridge :type git :host github :repo "manateelazycat/lsp-bridge"
-			  :files ("*")
-			  :build nil)
+              :files ("*")
+              :build nil)
     :defer t
     :hook ((lsp-bridge-mode . my-lsp-bridge--remap-xref))
     :init
@@ -660,53 +701,56 @@ ref:https://github.com/manateelazycat/toggle-one-window
       "Support LANG in org source code block."
       (cl-check-type lang string)
       (let* ((edit-pre (intern (format "org-babel-edit-prep:%s" lang)))
-	     (intern-pre (intern (format "lsp--%s" (symbol-name edit-pre)))))
-	`(progn
-	   (defun ,intern-pre (info)
-	     (let ((file-name (->> info caddr (alist-get :file))))
-	       (unless file-name
-		 (setq file-name (expand-file-name "OrgBabel/org-src-babel" my-code-dir))
-		 (write-region (point-min) (point-max) file-name))
-	       (setq buffer-file-name file-name)
-	       (lsp-bridge-mode 1)))
-	   (put ',intern-pre 'function-documentation
-		(format "Enable lsp-bridge-mode in the buffer of org source block (%s)."
-			(upcase ,lang)))
-	   (if (fboundp ',edit-pre)
-	       (advice-add ',edit-pre :after ',intern-pre)
-	     (progn
-	       (defun ,edit-pre (info)
-		 (,intern-pre info))
-	       (put ',edit-pre 'function-documentation
-		    (format "Prepare local buffer environment for org source block (%s)."
-			    (upcase ,lang))))))))
+         (intern-pre (intern (format "lsp--%s" (symbol-name edit-pre)))))
+    `(progn
+       (defun ,intern-pre (info)
+         (let ((file-name (->> info caddr (alist-get :file))))
+           (unless file-name
+         (setq file-name (expand-file-name "OrgBabel/org-src-babel" my-code-dir))
+         (write-region (point-min) (point-max) file-name))
+           (setq buffer-file-name file-name)
+           (lsp-bridge-mode 1)))
+       (put ',intern-pre 'function-documentation
+        (format "Enable lsp-bridge-mode in the buffer of org source block (%s)."
+            (upcase ,lang)))
+       (if (fboundp ',edit-pre)
+           (advice-add ',edit-pre :after ',intern-pre)
+         (progn
+           (defun ,edit-pre (info)
+         (,intern-pre info))
+           (put ',edit-pre 'function-documentation
+            (format "Prepare local buffer environment for org source block (%s)."
+                (upcase ,lang))))))))
 
     (with-eval-after-load 'org
       (dolist (lang '("c" "cpp" "python" "rust"))
-	(eval `(my-lsp-org-babel-enable ,lang))))
+    (eval `(my-lsp-org-babel-enable ,lang))))
 
 
     :config
-    (defun lsp-bridge-get-custom-server-json (project-path file-path)
-      (let ((ext (file-name-extension file-path)))
-	(cond ((member ext '("c" "cpp" "h" "hpp" "cc"))
-	       (expand-file-name  "lsp-bridge/clangd" user-emacs-directory))
-	      (t nil)
-	      )))
 
-    (setq lsp-bridge-get-single-lang-server-by-project #'lsp-bridge-get-custom-server-json)
+    (push '(js-ts-mode . "javascript") lsp-bridge-single-lang-server-mode-list)
+    (push '(typescript-ts-mode . "typescript") lsp-bridge-single-lang-server-mode-list)
+    (push '(css-ts-mode . "vscode-css-language-server") lsp-bridge-single-lang-server-mode-list)
+    (push '(scss-mode . "vscode-css-language-server") lsp-bridge-single-lang-server-mode-list)
+    (push '(cmake-ts-mode . "cmake-language-server") lsp-bridge-single-lang-server-mode-list)
+    (push '(python-ts-mode . "pyright") lsp-bridge-single-lang-server-mode-list)
+
+    (setq lsp-bridge-user-langserver-dir my-etc-dir
+          lsp-bridge-user-multiserver-dir my-etc-dir)
+
 
     (setq acm-enable-tabnine nil
-	  acm-enable-quick-access t
-	  lsp-bridge-enable-hover-diagnostic t)
+      acm-enable-quick-access t
+      lsp-bridge-enable-hover-diagnostic t)
 
     (defun my-lsp-bridge--remap-xref()
       "Remap xref key bind when lsp-bridge-mode enable."
       (unless (eq major-mode 'emacs-lisp-mode)
-	(local-set-key (kbd "M-.") #'lsp-bridge-find-def)
-	(local-set-key (kbd "M-?") #'lsp-bridge-find-references)
-	(local-set-key (kbd "M-,") #'lsp-bridge-find-def-return)
-	))
+    (local-set-key (kbd "M-.") #'lsp-bridge-find-def)
+    (local-set-key (kbd "M-?") #'lsp-bridge-find-references)
+    (local-set-key (kbd "M-,") #'lsp-bridge-find-def-return)
+    ))
     )
 #+end_src
 
@@ -718,6 +762,10 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (require 'yasnippet)
     (yas-minor-mode)
     (require 'lsp-bridge)
+    ;; (when-let* ((project (project-current))
+    ;;            (project-root (nth 2 project)))
+    ;;   (setq-local lsp-bridge-user-langserver-dir project-root
+    ;;               lsp-bridge-user-multiserver-dir project-root))
     (lsp-bridge-mode))
 
 
@@ -728,7 +776,6 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package elec-pair
-    :ensure nil
     :hook (after-init . electric-pair-mode)
     :init (setq electric-pair-inhibit-predicate 'electric-pair-conservative-inhibit))
 #+end_src
@@ -738,7 +785,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 #+begin_src elisp
   (use-package highlight-parentheses
     :straight t
-    :hook (emacs-lisp-mode . highlight-parentheses-mode))
+    :hook (prog-mode . highlight-parentheses-mode))
 #+end_src
 
 ** 注释代码
@@ -749,7 +796,9 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :bind ("C-/" . evilnc-comment-or-uncomment-lines))
 #+end_src
 
-** magit
+** git 配置
+
+*** magit
 
 #+begin_src elisp
   (use-package magit
@@ -759,9 +808,147 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (when sys-is-windows
       (setenv "GIT_ASKPASS" "git-gui--askpass")))
 
+  (use-package magit-todos
+    :straight t
+    :after magit
+    :config
+    (magit-todos-mode +1))
+
+
   (use-package ssh-agency
     :straight t
     :after magit)
+#+end_src
+
+*** 显示当前行的最后提交信息
+
+#+begin_src emacs-lisp
+  (use-package git-messenger
+    :straight t
+    :bind (:map vc-prefix-map
+           ("p" . git-messenger:popup-message)
+           :map git-messenger-map
+           ("m" . git-messenger:copy-message))
+    :init
+    (setq git-messenger:show-detail t
+          git-messenger:use-magit-popup t)
+
+    (defface posframe-border
+      `((t (:inherit region)))
+      "Face used by the `posframe' border."
+      :group 'posframe)
+    :config
+    (with-no-warnings
+      (with-eval-after-load 'hydra
+        (defhydra git-messenger-hydra (:color blue)
+          ("s" git-messenger:popup-show "show")
+          ("c" git-messenger:copy-commit-id "copy hash")
+          ("m" git-messenger:copy-message "copy message")
+          ("," (catch 'git-messenger-loop (git-messenger:show-parent)) "go parent")
+          ("q" git-messenger:popup-close "quit")))
+
+      (defun my-git-messenger:format-detail (vcs commit-id author message)
+        (if (eq vcs 'git)
+            (let ((date (git-messenger:commit-date commit-id))
+                  (colon (propertize ":" 'face 'font-lock-comment-face)))
+              (concat
+               (format "%s%s %s \n%s%s %s\n%s  %s %s \n"
+                       (propertize "Commit" 'face 'font-lock-keyword-face) colon
+                       (propertize (substring commit-id 0 8) 'face 'font-lock-comment-face)
+                       (propertize "Author" 'face 'font-lock-keyword-face) colon
+                       (propertize author 'face 'font-lock-string-face)
+                       (propertize "Date" 'face 'font-lock-keyword-face) colon
+                       (propertize date 'face 'font-lock-string-face))
+               (propertize (make-string 38 ?─) 'face 'font-lock-comment-face)
+               message
+               (propertize "\nPress q to quit" 'face '(:inherit (font-lock-comment-face italic)))))
+          (git-messenger:format-detail vcs commit-id author message)))
+
+      (defun my-git-messenger:popup-message ()
+        "Popup message with `posframe', `pos-tip', `lv' or `message', and dispatch actions with `hydra'."
+        (interactive)
+        (let* ((hydra-hint-display-type 'message)
+               (vcs (git-messenger:find-vcs))
+               (file (buffer-file-name (buffer-base-buffer)))
+               (line (line-number-at-pos))
+               (commit-info (git-messenger:commit-info-at-line vcs file line))
+               (commit-id (car commit-info))
+               (author (cdr commit-info))
+               (msg (git-messenger:commit-message vcs commit-id))
+               (popuped-message (if (git-messenger:show-detail-p commit-id)
+                                    (my-git-messenger:format-detail vcs commit-id author msg)
+                                  (cl-case vcs
+                                    (git msg)
+                                    (svn (if (string= commit-id "-")
+                                             msg
+                                           (git-messenger:svn-message msg)))
+                                    (hg msg)))))
+          (setq git-messenger:vcs vcs
+                git-messenger:last-message msg
+                git-messenger:last-commit-id commit-id)
+          (run-hook-with-args 'git-messenger:before-popup-hook popuped-message)
+          (git-messenger-hydra/body)
+          (cond ((and (fboundp 'posframe-workable-p) (posframe-workable-p))
+                 (let ((buffer-name "*git-messenger*"))
+                   (posframe-show buffer-name
+                                  :string (concat (propertize "\n" 'face '(:height 0.3))
+                                                  popuped-message
+                                                  "\n"
+                                                  (propertize "\n" 'face '(:height 0.3)))
+                                  :left-fringe 8
+                                  :right-fringe 8
+                                  :max-width (round (* (frame-width) 0.62))
+                                  :max-height (round (* (frame-height) 0.62))
+                                  :internal-border-width 1
+                                  :internal-border-color (face-background 'posframe-border nil t)
+                                  :background-color (face-background 'tooltip nil t))
+                   (unwind-protect
+                       (push (read-event) unread-command-events)
+                     (posframe-hide buffer-name))))
+                ((and (fboundp 'pos-tip-show) (display-graphic-p))
+                 (pos-tip-show popuped-message))
+                ((fboundp 'lv-message)
+                 (lv-message popuped-message)
+                 (unwind-protect
+                     (push (read-event) unread-command-events)
+                   (lv-delete-window)))
+                (t (message "%s" popuped-message)))
+          (run-hook-with-args 'git-messenger:after-popup-hook popuped-message)))
+      (advice-add #'git-messenger:popup-close :override #'ignore)
+      (advice-add #'git-messenger:popup-message :override #'my-git-messenger:popup-message)))
+#+end_src
+
+*** smerge-mode 解决冲突
+
+#+begin_src elisp
+  (use-package smerge-mode
+    :ensure nil
+    :pretty-hydra
+    ((:title (pretty-hydra-title "Smerge" 'octicon "diff")
+             :color pink :quit-key "q")
+     ("Move"
+      (("n" smerge-next "next")
+       ("p" smerge-prev "previous"))
+      "Keep"
+      (("b" smerge-keep-base "base")
+       ("u" smerge-keep-upper "upper")
+       ("l" smerge-keep-lower "lower")
+       ("a" smerge-keep-all "all")
+       ("RET" smerge-keep-current "current")
+       ("C-m" smerge-keep-current "current"))
+      "Diff"
+      (("<" smerge-diff-base-upper "upper/base")
+       ("=" smerge-diff-upper-lower "upper/lower")
+       (">" smerge-diff-base-lower "upper/lower")
+       ("R" smerge-refine "refine")
+       ("E" smerge-ediff "ediff"))
+      "Other"
+      (("C" smerge-combine-with-next "combine")
+       ("r" smerge-resolve "resolve")
+       ("k" smerge-kill-current "kill")
+       )))
+    :bind (:map smerge-mode-map
+                ("C-c m" . smerge-mode-hydra/body)))
 #+end_src
 
 ** 可视化的正则替换
@@ -770,6 +957,31 @@ ref:https://github.com/manateelazycat/toggle-one-window
   (use-package visual-regexp
     :straight t
     :defer t)
+#+end_src
+
+** 递增选区
+
+#+begin_src emacs-lisp
+  (use-package expand-region
+    :straight t
+    :bind (("C-=" . er/expand-region))
+    :config
+    (defun treesit-mark-bigger-node ()
+      (let* ((root (treesit-buffer-root-node))
+             (node (treesit-node-descendant-for-range root (region-beginning) (region-end)))
+             (node-start (treesit-node-start node))
+             (node-end (treesit-node-end node)))
+        ;; Node fits the region exactly. Try its parent node instead.
+        (when (and (= (region-beginning) node-start) (= (region-end) node-end))
+          (when-let ((node (treesit-node-parent node)))
+            (setq node-start (treesit-node-start node)
+                  node-end (treesit-node-end node))))
+        (set-mark node-end)
+        (goto-char node-start)))
+
+    (add-to-list 'er/try-expand-list 'treesit-mark-bigger-node)
+    )
+
 #+end_src
 
 ** openwith 外部工具打开文件
@@ -800,7 +1012,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 		  (java-mode       . java-ts-mode)
 		  (json-mode       . json-ts-mode)
 		  (js-json-mode    . json-ts-mode)
-		  (js-mode         . js-ts-mode)
+		  (javascript-mode . js-ts-mode)
 		  (python-mode     . python-ts-mode)
 		  (rust-mode       . rust-ts-mode)
 		  (sh-mode         . bash-ts-mode)
@@ -809,9 +1021,17 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 ** C++ 开发配置
 
+*** cmake-ts-mode 设置
+
+#+begin_src emacs-lisp
+  (use-package cmake-ts-mode
+    :hook (cmake-ts-mode . my-enable-lsp-bridge))
+#+end_src
+
+*** c-ts-mode 设置
+
 #+begin_src elisp
   (use-package c-ts-mode
-    :ensure nil
     :hook (c++-ts-mode . my-enable-cc-dev)
     :custom
     (c-ts-mode-indent-offset  4)
@@ -830,14 +1050,65 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :hook (rust-ts-mode . my-enable-lsp-bridge))
 #+end_src
 
+** python 开发配置
+
+#+begin_src emacs-lisp
+  (use-package python
+    :hook (python-ts-mode . my-enable-lsp-bridge))
+#+end_src
+
+** web 开发
+
+*** Javascript
+
+#+begin_src elisp
+  (use-package js
+    :hook (js-ts-mode . my-enable-lsp-bridge)
+    )
+#+end_src
+
+*** Typescript
+
+#+begin_src emacs-lisp
+  (use-package typescript-ts-mode
+    :hook (typescript-ts-base-mode . my-enable-lsp-bridge))
+#+end_src
+
+*** HTML
+
+#+begin_src emacs-lisp
+  (use-package web-mode
+    :straight t
+    :mode "\\.\\(phtml\\|php\\|[gj]sp\\|as[cp]x\\|erb\\|djhtml\\|html?\\|hbs\\|ejs\\|jade\\|swig\\|tm?pl\\|vue\\)$"
+    :hook (web-mode . my-enable-lsp-bridge)
+    :custom
+    (web-mode-markup-indent-offset 2)
+    (web-mode-css-indent-offset 2)
+    (web-mode-code-indent-offset 2)
+    (web-mode-enable-auto-indentation nil)
+    )
+#+end_src
+
+*** css
+
+
+#+begin_src elisp
+  (use-package css-mode
+    :hook (css-ts-mode . my-enable-lsp-bridge)
+    :custom
+    (css-indent-offset 2))
+
+  (use-package scss-mode
+    :hook (scss-mode . my-enable-lsp-bridge))
+#+end_src
+
 ** json-mode
 
 #+begin_src elisp
   (use-package json-js-mode
     :defer t
-    :ensure nil
     :custom
-    (json-ts-mode-indent-offset 4))
+    (json-ts-mode-indent-offset 2))
 #+end_src
 
 ** dap-mode 配置
@@ -993,8 +1264,9 @@ ref:https://github.com/manateelazycat/toggle-one-window
         (let* ((session (lsp-session))
                (lsp-auto-guess-root t)
                (project-root (lsp-f-canonical (lsp--calculate-root session (buffer-file-name)))))
-          (cl-pushnew project-root (lsp-session-folders session))
-          (lsp--persist-session session)
+          (unless (-contains? (lsp-session-folders session) project-root)
+            (cl-pushnew project-root (lsp-session-folders session))
+            (lsp--persist-session session))
           ))))
 
   (defun my/dap-debug()
@@ -1006,16 +1278,495 @@ ref:https://github.com/manateelazycat/toggle-one-window
     )
 #+end_src
 
-** org-mode 配置
+** org 配置
+
+*** org-mode 美化设置
 
 #+begin_src elisp
   (use-package org
     :defer t
-    :ensure nil
+    :straight t
+    :hook (org-mode . my--org-prettify-symbols)
+    :custom-face
+    ;; 设置Org mode标题以及每级标题行的大小
+    (org-document-title ((t (:height 1.75 :weight bold))))
+    (org-level-1 ((t (:height 1.2 :weight bold))))
+    (org-level-2 ((t (:height 1.15 :weight bold))))
+    (org-level-3 ((t (:height 1.1 :weight bold))))
+    (org-level-4 ((t (:height 1.05 :weight bold))))
+    (org-level-5 ((t (:height 1.0 :weight bold))))
+    (org-level-6 ((t (:height 1.0 :weight bold))))
+    (org-level-7 ((t (:height 1.0 :weight bold))))
+    (org-level-8 ((t (:height 1.0 :weight bold))))
+    (org-level-9 ((t (:height 1.0 :weight bold))))
+    ;; 设置代码块用上下边线包裹
+    (org-block-begin-line ((t (:underline t :background unspecified))))
+    (org-block-end-line ((t (:overline t :underline nil :background unspecified))))
+
+    :custom
+    ;; 标题行美化
+    (org-fontify-whole-heading-line t)
+    ;; 设置标题行折叠符号
+    (org-ellipsis " ▾")
+    ;; TODO标签美化
+    (org-fontify-todo-headline t)
+    ;; DONE标签美化
+    (org-fontify-done-headline t)
+    ;; 引用块美化
+    (org-fontify-quote-and-verse-blocks t)
+    ;; 隐藏宏标记
+    (org-hide-macro-markers t)
+    ;; 隐藏强调标签
+    (org-hide-emphasis-markers t)
+    ;; 高亮latex语法
+    (org-highlight-latex-and-related '(native script entities))
+    ;; 以UTF-8显示
+    (org-pretty-entities t)
+    ;; 当启用缩进模式时自动隐藏前置星号
+    (org-indent-mode-turns-on-hiding-stars t)
+    ;; 自动启用缩进
+    (org-startup-indented nil)
+    ;; 根据标题栏自动缩进文本
+    (org-adapt-indentation nil)
+    ;; 自动显示图片
+    (org-startup-with-inline-images t)
+    ;; 默认以Overview的模式展示标题行
+    (org-startup-folded 'overview)
+    ;; 允许字母列表
+    (org-list-allow-alphabetical t)
+    ;; 编辑时检查是否在折叠的不可见区域
+    (org-fold-catch-invisible-edits 'smart)
     :config
-    (require 'org-tempo)
+
+    (defun my--org-prettify-symbols ()
+      (setq prettify-symbols-alist
+            (mapcan (lambda (x) (list x (cons (upcase (car x)) (cdr x))))
+                    '(
+                      ("#+begin_src"      . 9998)         ; ✎
+                      ("#+end_src"        . 9633)         ; □
+                      ("#+results:"       . 9776)         ; ☰
+                      )))
+      (setq prettify-symbols-unprettify-at-point t)
+      (prettify-symbols-mode 1))
+
+    ;; 中文强调标记可用
+    (setcar (nthcdr 0 org-emphasis-regexp-components) " \t('\"{[:nonascii:]")
+    (setcar (nthcdr 1 org-emphasis-regexp-components) "- \t.,:!?;'\")}\\[[:nonascii:]")
+    (org-set-emph-re 'org-emphasis-regexp-components org-emphasis-regexp-components)
+    (org-element-update-syntax)
+
+
+    ;; 设置标题行之间总是有空格；列表之间根据情况自动加空格
+    (setq org-blank-before-new-entry '((heading . t)
+                                       (plain-list-item . auto)
+                                       ))
+    )
+
+  (use-package org-modern
+    :straight t
+    :hook (org-mode . org-modern-mode)
+    :config
+    ;; 额外的行间距，0.1表示10%，1表示1px
+    (setq-default line-spacing 0.1)
+    ;; tag边框宽度，还可以设置为 `auto' 即自动计算
+    (setq org-modern-label-border 1)
+    ;; 设置表格竖线宽度，默认为3
+    (setq org-modern-table-vertical 2)
+    ;; 设置表格横线为0，默认为0.1
+    (setq org-modern-table-horizontal 0)
+    ;; 复选框美化
+    (setq org-modern-checkbox
+          '((?X . #("▢✓" 0 2 (composition ((2)))))
+            (?- . #("▢–" 0 2 (composition ((2)))))
+            (?\s . #("▢" 0 1 (composition ((1)))))))
+    ;; 列表符号美化
+    (setq org-modern-list
+          '((?- . "•")
+            (?+ . "◦")
+            (?* . "▹")))
+    ;; 代码块类型美化，我们使用了 `prettify-symbols-mode'
+    (setq org-modern-block-name nil)
+    ;; #+关键字美化，我们使用了 `prettify-symbols-mode'
+    (setq org-modern-keyword nil)
+    )
+
+  (use-package org-appear
+    :straight t
+    :hook (org-mode . org-appear-mode)
+    :config
+    (setq org-appear-autolinks t)
+    (setq org-appear-autosubmarkers t)
+    (setq org-appear-autoentities t)
+    (setq org-appear-autokeywords t)
+    (setq org-appear-inside-latex t)
     )
 #+end_src
+
+*** org 基本配置
+
+#+begin_src elisp
+  (use-package org
+    :defer t
+    :straight t
+    :bind (:map org-mode-map
+                ("<" . my/insert-org-template))
+    :custom
+    (org-directory my-org-dir)
+    :config
+    ;; For hydra
+    (defun hot-expand (str &optional mod)
+      "Expand org template.
+  STR is a structure template string recognised by org like <s. MOD is a
+  string with additional parameters to add the begin line of the
+  structure element. HEADER string includes more parameters that are
+  prepended to the element after the #+HEADER: tag."
+      (let (text)
+        (when (region-active-p)
+          (setq text (buffer-substring (region-beginning) (region-end)))
+          (delete-region (region-beginning) (region-end)))
+        (insert str)
+        (if (fboundp 'org-try-structure-completion)
+            (org-try-structure-completion) ; < org 9
+          (progn
+            ;; New template expansion since org 9
+            (require 'org-tempo nil t)
+            (org-tempo-complete-tag)))
+        (when mod (insert mod) (forward-line))
+        (when text (insert text))))
+
+    (defun my/insert-org-template()
+      "Insert org template"
+      (interactive)
+      (if (or (region-active-p) (looking-back "^\s*" 1))
+          (org-hydra/body)
+        (self-insert-command 1)))
+
+    :pretty-hydra
+    ;; See `org-structure-template-alist'
+    ((:title (pretty-hydra-title "Org Template" 'fileicon "org" :face 'all-the-icons-green :height 1.1 :v-adjust 0.0)
+             :color blue :quit-key ("q" "C-g"))
+     ("Basic"
+      (("a" (hot-expand "<a") "ascii")
+       ("c" (hot-expand "<c") "center")
+       ("C" (hot-expand "<C") "comment")
+       ("e" (hot-expand "<e") "example")
+       ("E" (hot-expand "<E") "export")
+       ("h" (hot-expand "<h") "html")
+       ("l" (hot-expand "<l") "latex")
+       ("n" (hot-expand "<n") "note")
+       ("o" (hot-expand "<q") "quote")
+       ("v" (hot-expand "<v") "verse"))
+      "Head"
+      (("i" (hot-expand "<i") "index")
+       ("A" (hot-expand "<A") "ASCII")
+       ("I" (hot-expand "<I") "INCLUDE")
+       ("H" (hot-expand "<H") "HTML")
+       ("L" (hot-expand "<L") "LaTeX"))
+      "Source"
+      (("s" (hot-expand "<s") "src")
+       ("m" (hot-expand "<s" "emacs-lisp") "emacs-lisp")
+       ("y" (hot-expand "<s" "python :results output") "python")
+       ("p" (hot-expand "<s" "perl") "perl")
+       ("w" (hot-expand "<s" "powershell") "powershell")
+       ("r" (hot-expand "<s" "ruby") "ruby")
+       ("S" (hot-expand "<s" "sh") "sh")
+       ("g" (hot-expand "<s" "go :imports '\(\"fmt\"\)") "golang"))
+      "Misc"
+      (("u" (hot-expand "<s" "plantuml :file CHANGE.png") "plantuml")
+       ("Y" (hot-expand "<s" "ipython :session :exports both :results raw drawer\n$0") "ipython")
+       ("P" (progn
+              (insert "#+HEADERS: :results output :exports both :shebang \"#!/usr/bin/env perl\"\n")
+              (hot-expand "<s" "perl")) "Perl tangled")
+       ("<" self-insert-command "ins"))))
+    )
+#+end_src
+
+*** org babel 设置
+
+#+begin_src elisp
+  (use-package org
+    :defer t
+    :straight t
+    :custom
+    (org-confirm-babel-evaluate nil)
+    (org-export-use-babel nil)
+    :config
+    (org-babel-do-load-languages 'org-babel-load-languages
+                                 '((emacs-lisp . t)
+                                   (perl . t)
+                                   (python . t)
+                                   (ruby . t)
+                                   (js . t)
+                                   (css . t)
+                                   (sass . t)
+                                   (C . t)
+                                   (java . t)))
+    ;; C 执行支持 :stdin 数据
+    (defun my*org-babel-execute-add-stdin(args)
+      (let* ((body (nth 0 args))
+             (params (nth 1 args))
+             (stdin (cdr (assq :stdin params)))
+             (cmdline (cdr (assq :cmdline params)))
+             (stdin-file (expand-file-name "input_data.txt" (temporary-file-directory)))
+             (data))
+        (when stdin
+          (setq data
+                (save-excursion
+                  (org-babel-goto-named-src-block stdin)
+                  (org-element-property :value (org-element-at-point))))
+          (with-temp-file stdin-file
+            (insert data))
+          (setq cmdline (concat (or cmdline "") " < " stdin-file))
+          (setf (alist-get :cmdline params) cmdline))
+        `(,body ,params)
+        ))
+    (advice-add #'org-babel-C-execute :filter-args 'my*org-babel-execute-add-stdin)
+
+    )
+#+end_src
+
+*** gtd 配置
+
+#+begin_src elisp
+  (use-package org
+    :defer t
+    :straight t
+    :bind (("C-c a" . org-agenda)
+           ("C-c c" . org-capture))
+    :init
+    (setq my-org-inbox-file (expand-file-name "gtd/inbox.org" my-org-dir))
+    (setq my-org-projects-file (expand-file-name "gtd/projects.org" my-org-dir))
+
+    (defun my--verify-refile-target ()
+      "Exclude todo keywords with a done state from refile targets"
+      (not (member (nth 2 (org-heading-components)) org-done-keywords)))
+
+    :custom
+    (org-agenda-files `(,my-org-inbox-file ,my-org-projects-file))
+    (org-capture-templates `(("i" "Inbox" entry
+                              (file ,my-org-inbox-file)
+                              ,(concat "* TODO %?\n"
+                                       "/Entered on/ %U"))))
+    (org-todo-keywords
+     '((sequence "TODO(t)" "NEXT(n)" "HOLD(h)" "|" "DONE(d)" "CANCELLED(c)")))
+
+    ;; refile
+    (org-refile-targets '((nil :maxlevel . 9)
+                          (org-agenda-files :maxlevel . 9)))
+
+    (org-refile-use-outline-path t)
+    (org-outline-path-complete-in-steps nil)
+    (org-refile-allow-creating-parent-nodes 'confirm)
+    (org-refile-target-verify-function 'my--verify-refile-target)
+
+    ;; agenda
+
+    (org-agenda-span 'day)
+    (org-agenda-hide-tags-regexp ".")
+    (org-agenda-prefix-format
+        '((agenda . " %i %-12:c%?-12t% s")
+          (todo   . " ")
+          (tags   . " %i %-12:c")
+          (search . " %i %-12:c")))
+
+    (org-agenda-custom-commands
+        '(("g" "Get Things Done (GTD)"
+           ((agenda ""
+                    ((org-agenda-skip-function
+                      '(org-agenda-skip-entry-if 'deadline))
+                     (org-deadline-warning-days 0)))
+            (todo "NEXT"
+                  ((org-agenda-skip-function
+                    '(org-agenda-skip-entry-if 'deadline))
+                   (org-agenda-prefix-format "  %i %-12:c ")
+                   (org-agenda-overriding-header "\nTasks\n")))
+            (agenda nil
+                    ((org-agenda-entry-types '(:deadline))
+                     (org-agenda-format-date "")
+                     (org-deadline-warning-days 7)
+                     (org-agenda-skip-function
+                      '(org-agenda-skip-entry-if 'notregexp "\\* NEXT"))
+                     (org-agenda-overriding-header "\nDeadlines")))
+            (tags-todo "inbox"
+                       ((org-agenda-prefix-format "  %?-12t% s")
+                        (org-agenda-overriding-header "\nInbox\n")))
+            (tags "CLOSED>\"<today>\""
+                  ((org-agenda-overriding-header "\nCompleted today\n")))))))
+
+
+
+    )
+#+end_src
+
+** 知识管理及博客配置
+
+*** org-roam
+
+#+begin_src emacs-lisp
+  (use-package emacsql-sqlite-builtin
+    :straight t
+    :defer t)
+
+  (use-package org-roam
+    :straight t
+    :custom
+    (org-roam-directory (expand-file-name "org-roam" my-org-dir))
+    :bind (("C-c n l" . org-roam-buffer-toggle)
+           ("C-c n f" . org-roam-node-find)
+           ("C-c n g" . org-roam-graph)
+           ("C-c n i" . org-roam-node-insert)
+           ("C-c n c" . org-roam-capture)
+           ;; Dailies
+           ("C-c n j" . org-roam-dailies-capture-today))
+    :init
+    (setq org-roam-v2-ack t)
+    (setq org-roam-database-connector 'sqlite-builtin)
+    :config
+    (org-roam-setup)
+
+    (setq org-roam-capture-templates
+          '(("d" "default" plain "%?"
+             :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
+                                "
+  ,#+hugo_base_dir: ../../Blog
+  ,#+hugo_section: post
+  ,#+title: ${title}
+  ,#+date: %<%Y-%m-%d>
+  ,#+author:
+  ,#+hugo_custom_front_matter: :author \"xhcoding\"
+  ,#+hugo_custom_front_matter: :isCJKLanguage true
+  ,#+hugo_custom_front_matter: :lastmod %<%Y-%m-%d>
+  ,#+hugo_tags:
+  ,#+hugo_categories:
+  ,#+hugo_draft: false
+  ")
+             :unnarrowed t)))
+    )
+
+
+#+end_src
+
+*** hugo 配置
+
+#+begin_src emacs-lisp
+  ;; 博客相关配置
+  (defconst my-blog-root-dir
+    "~/Blog/"
+    "Blog root directory.")
+
+  (defconst my-blog-img-dir
+    (expand-file-name "images/" my-archives-dir)
+    "Blog's image directory.")
+
+  (defconst my-blog-res-url
+    "https://images.xhcoding.cn/blog/"
+    "Blog's source address.")
+
+  (defconst my-blog-post-url
+    "https://xhcoding.cn/post/"
+    "Blog's post address.")
+
+  (use-package ox-hugo
+    :straight t
+    :after org
+    :config
+    (defun my-blog--blog-image-file-path-p (raw-path)
+      (let ((file-path (expand-file-name raw-path)))
+        (equal (string-match-p (regexp-quote (expand-file-name my-blog-img-dir)) file-path) 0)))
+
+    ;; ~/Documents/Blog/images/1.png ==> https://images.xhcoding.cn/1.png
+
+    (defun my-blog--convert-image-url (raw-path)
+      (let ((file-path (expand-file-name raw-path)))
+        (concat my-blog-res-url (string-trim-left file-path my-blog-img-dir))))
+
+    ;; id:xxxxxx ==> https://xhcoding.cn/post/aaaaa
+    (defun my-blog--convert-publish-url (id)
+      (let ((file-name (file-name-base (org-roam-node-file (org-roam-node-from-id id)))))
+        (concat my-blog-post-url file-name)))
+
+    ;; ~/Documents/Blog/images/1.png ==> https://images.xhcoding.cn/1.png
+    ;; id:xxxxxx ==> https://xhcoding.cn/post/aaaaa
+    (defun my-blog*export-blog-url (args)
+      (let* ((link (nth 0 args))
+             (desc (nth 1 args))
+             (info (nth 2 args))
+             (type (org-element-property :type link))
+             (raw-path (org-element-property :path link)))
+        (cond
+         ((and (string-equal type "file") (my-blog--blog-image-file-path-p raw-path))
+          (progn
+            (let* ((image-url (my-blog--convert-image-url raw-path))
+                   (new-link (org-element-put-property link :path image-url )))
+              `(,new-link ,desc ,info))))
+         ((string-equal type "id")
+          (progn
+            (let* ((post-url (my-blog--convert-publish-url raw-path))
+                   (new-link))
+              (setq new-link (org-element-put-property link :path post-url))
+              (setq new-link (org-element-put-property new-link :type "file"))
+              `(,new-link ,desc, info))))
+         (t `(,link ,desc ,info))
+         )))
+
+    (advice-add #'org-hugo-link :filter-args #'my-blog*export-blog-url)
+    )
+
+  (use-package easy-hugo
+    :straight t
+    :defer t
+    :config
+    (require 'org-roam)
+    (setq easy-hugo-basedir (expand-file-name my-blog-root-dir)
+          easy-hugo-postdir (expand-file-name org-roam-directory)
+          easy-hugo-org-header t))
+
+#+end_src
+
+*** org-download 下载图片
+
+#+begin_src elisp
+  (use-package org-download
+    :straight t
+    :after org
+    :config
+    (when sys-is-windows
+      (setq org-download-screenshot-method "irfanview /capture=4 /convert=\"%s\""
+            org-download-display-inline-images 'posframe
+            org-download-abbreviate-filename-function 'expand-file-name))
+    (setq-default org-download-image-dir my-blog-img-dir
+                  org-download-heading-lvl 2)
+    (defun my/org-download-clipboard()
+      "Download from clipboard"
+      (interactive)
+      (let ((org-download-screenshot-method "irfanview /clippaste /convert=\"%s\""))
+        (org-download-screenshot))))
+
+
+#+end_src
+
+** eaf 配置
+
+#+begin_src elisp
+  (use-package eaf
+    :straight (emacs-application-framework :type git :host github :repo "emacs-eaf/emacs-application-framework"
+                          :files ("*")
+                          :build nil)
+    :defer t
+    :commands (eaf-open eaf-open-browser eaf-open-this-buffer)
+    :init
+    ;; 手动添加到 load-path
+    (add-to-list 'load-path (straight--repos-dir "emacs-application-framework"))
+    :config
+    (setq eaf-webengine-default-zoom 2.5)
+    (require 'eaf-browser)
+    (require 'eaf-pdf-viewer)
+    (require 'eaf-org-previewer)
+    (require 'eaf-markdown-previewer)
+    )
+
+#+end_src
+
 ** 按键提示
 
 #+begin_src elisp
@@ -1058,9 +1809,11 @@ ref: https://github.com/manateelazycat/lazy-load
     (setq meow-cheatsheet-layout meow-cheatsheet-layout-qwerty)
 
     (setq meow-char-thing-table
-      '((?r . round)
-        (?s . string)
-        (?b . buffer)))
+          '((?r . round)
+            (?c . curly)
+            (?s . string)
+            (?b . buffer)
+            (?d . defun)))
 
     (setq meow-use-clipboard t)
 

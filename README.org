@@ -67,16 +67,16 @@ Emacs 启动过程的早期加载。
 
   (defvar bootstrap-version)
   (let ((bootstrap-file
-	 (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
-	(bootstrap-version 6))
+     (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
+    (bootstrap-version 6))
     (unless (file-exists-p bootstrap-file)
 
       (with-current-buffer
-	  (url-retrieve-synchronously
-	   "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
-	   'silent 'inhibit-cookies)
-	(goto-char (point-max))
-	(eval-print-last-sexp)))
+      (url-retrieve-synchronously
+       "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
+       'silent 'inhibit-cookies)
+    (goto-char (point-max))
+    (eval-print-last-sexp)))
     (load bootstrap-file nil 'nomessage))
 
   (setq straight-vc-git-default-clone-depth 1)
@@ -709,7 +709,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
          (setq file-name (expand-file-name "OrgBabel/org-src-babel" my-code-dir))
          (write-region (point-min) (point-max) file-name))
            (setq buffer-file-name file-name)
-           (lsp-bridge-mode 1)))
+           (my-enable-lsp-bridge)))
        (put ',intern-pre 'function-documentation
         (format "Enable lsp-bridge-mode in the buffer of org source block (%s)."
             (upcase ,lang)))
@@ -734,7 +734,8 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (push '(css-ts-mode . "vscode-css-language-server") lsp-bridge-single-lang-server-mode-list)
     (push '(scss-mode . "vscode-css-language-server") lsp-bridge-single-lang-server-mode-list)
     (push '(cmake-ts-mode . "cmake-language-server") lsp-bridge-single-lang-server-mode-list)
-    (push '(python-ts-mode . "pyright") lsp-bridge-single-lang-server-mode-list)
+
+    (push '(qml-ts-mode . "qmlls_javascript") lsp-bridge-multi-lang-server-mode-list)
 
     (setq lsp-bridge-user-langserver-dir my-etc-dir
           lsp-bridge-user-multiserver-dir my-etc-dir)
@@ -1111,6 +1112,27 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (json-ts-mode-indent-offset 2))
 #+end_src
 
+** qml
+
+#+begin_src elisp
+  (use-package qml-ts-mode
+    :straight (qml-ts-mode :type git :host github :repo "xhcoding/qml-ts-mode")
+    :hook (qml-ts-mode . my-enable-lsp-bridge)
+    :custom
+    (qml-ts-mode-indent-offset 4))
+#+end_src
+
+** plantuml 支持
+
+#+begin_src emacs-lisp
+  (use-package plantuml-mode
+    :straight t
+    :defer t
+    :custom
+    (plantuml-jar-path (expand-file-name "plantuml.jar" my-lib-dir))
+    (plantuml-default-exec-mode 'jar))
+#+end_src
+
 ** dap-mode 配置
 
 #+begin_src elisp
@@ -1336,15 +1358,27 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (org-list-allow-alphabetical t)
     ;; 编辑时检查是否在折叠的不可见区域
     (org-fold-catch-invisible-edits 'smart)
+    ;; 上标^下标_是否需要特殊字符包裹，这里设置需要用大括号包裹
+    (org-use-sub-superscripts '{})
     :config
 
     (defun my--org-prettify-symbols ()
       (setq prettify-symbols-alist
             (mapcan (lambda (x) (list x (cons (upcase (car x)) (cdr x))))
                     '(
-                      ("#+begin_src"      . 9998)         ; ✎
-                      ("#+end_src"        . 9633)         ; □
-                      ("#+results:"       . 9776)         ; ☰
+                      ("#+begin_src"                        . ?✎)
+                      ("#+end_src"                          . ?□)
+                      ("#+results:"                         . ?💻)
+                      ("#+date:"                            . ?📅)
+                      ("#+author:"                          . ?👤)
+                      ("#+title:"                           . ?📓)
+                      ("#+hugo_tags:"                       . ?📍)
+                      ("#+hugo_categories"                  . ?📁)
+                      ("#+hugo_locale"                      . ?🌐)
+                      ("#+hugo_draft"                       . ?🚮)
+                      ("#+hugo_custom_front_matter"         . ?📝)
+                      ("#+begin_quote"                      . ?«)
+                      ("#+end_quote"                        . ?»)
                       )))
       (setq prettify-symbols-unprettify-at-point t)
       (prettify-symbols-mode 1))
@@ -1500,7 +1534,8 @@ ref:https://github.com/manateelazycat/toggle-one-window
                                    (css . t)
                                    (sass . t)
                                    (C . t)
-                                   (java . t)))
+                                   (java . t)
+                                   (plantuml . t)))
     ;; C 执行支持 :stdin 数据
     (defun my*org-babel-execute-add-stdin(args)
       (let* ((body (nth 0 args))
@@ -1598,6 +1633,24 @@ ref:https://github.com/manateelazycat/toggle-one-window
     )
 #+end_src
 
+*** export 设置
+
+#+begin_src emacs-lisp
+  (use-package org
+    :straight t
+    :defer t
+    :hook (org-mode . my--set-org-html-head-extra)
+    :config
+    (defun my--set-org-html-head-extra ()
+      "Set org html head extra"
+      (let ((path (expand-file-name "custom-head.html" my-etc-dir)))
+        (when (file-exists-p path)
+          (setq org-html-head-extra (with-temp-buffer
+                                      (insert-file-contents path)
+                                      (buffer-string))))))
+    )
+#+end_src
+
 ** 知识管理及博客配置
 
 *** org-roam
@@ -1628,14 +1681,10 @@ ref:https://github.com/manateelazycat/toggle-one-window
           '(("d" "default" plain "%?"
              :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
                                 "
-  ,#+hugo_base_dir: ../../Blog
-  ,#+hugo_section: post
   ,#+title: ${title}
   ,#+date: %<%Y-%m-%d>
-  ,#+author:
-  ,#+hugo_custom_front_matter: :author \"xhcoding\"
+  ,#+author: xhcoding
   ,#+hugo_custom_front_matter: :isCJKLanguage true
-  ,#+hugo_custom_front_matter: :lastmod %<%Y-%m-%d>
   ,#+hugo_tags:
   ,#+hugo_categories:
   ,#+hugo_draft: false
@@ -1669,6 +1718,11 @@ ref:https://github.com/manateelazycat/toggle-one-window
   (use-package ox-hugo
     :straight t
     :after org
+    :custom
+    (org-hugo-base-dir my-blog-root-dir)
+    (org-hugo-section "post")
+    (org-hugo-default-section-directory "post")
+    (org-hugo-auto-set-lastmod t)
     :config
     (defun my-blog--blog-image-file-path-p (raw-path)
       (let ((file-path (expand-file-name raw-path)))
@@ -1710,6 +1764,14 @@ ref:https://github.com/manateelazycat/toggle-one-window
          )))
 
     (advice-add #'org-hugo-link :filter-args #'my-blog*export-blog-url)
+
+    ;; front matter author => authors
+    (defun my-blog*convert-author-to-authors(front-matter)
+      "Convert author to authors."
+      (let ((ret (replace-regexp-in-string "author" "authors" front-matter)))
+        ret))
+
+    (advice-add #'org-hugo--get-front-matter :filter-return #'my-blog*convert-author-to-authors)
     )
 
   (use-package easy-hugo
@@ -1719,8 +1781,35 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (require 'org-roam)
     (setq easy-hugo-basedir (expand-file-name my-blog-root-dir)
           easy-hugo-postdir (expand-file-name org-roam-directory)
-          easy-hugo-org-header t))
+          easy-hugo-org-header t
+          easy-hugo-github-deploy-script "deploy.bat"))
 
+#+end_src
+
+*** 上传博客图片到腾讯云对象存储
+
+#+begin_src emacs-lisp
+  (defun my-blog/upload-images-to-tencent-cos ()
+    "Upload blog images dir to tencent cos."
+    (interactive)
+    (call-process-shell-command
+     (concat
+      "coscmd upload -rs "
+      my-blog-img-dir
+      " blog/"
+      )))
+
+#+end_src
+
+*** 自动在中英文插入空格
+
+#+begin_src elisp
+  (use-package pangu-spacing
+    :straight t
+    :after org
+    :hook (org-mode . pangu-spacing-mode)
+    :custom
+    (pangu-spacing-real-insert-separtor t))
 #+end_src
 
 *** org-download 下载图片

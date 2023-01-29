@@ -8,6 +8,106 @@
 
 3. 启动 emacs
 
+* 目录                                                                  :TOC:
+- [[#安装方法][安装方法]]
+- [[#early-initel][early-init.el]]
+  - [[#将-gc-的阈值设置到最大避免启动的时候多次-gc-拖慢启动速度][将 gc 的阈值设置到最大，避免启动的时候多次 gc 拖慢启动速度]]
+  - [[#file-handler-临时设置为-nil加快启动速度][file handler 临时设置为 nil，加快启动速度]]
+  - [[#不要初始化-package][不要初始化 package]]
+  - [[#禁止-frame-缩放][禁止 frame 缩放]]
+  - [[#关闭菜单栏][关闭菜单栏]]
+  - [[#关闭工具栏][关闭工具栏]]
+  - [[#关闭滚动条][关闭滚动条]]
+  - [[#启动后全屏][启动后全屏]]
+  - [[#straight-包管理][straight 包管理]]
+  - [[#启动速度测试][启动速度测试]]
+- [[#emacs-配置][emacs 配置]]
+  - [[#载入-custom-文件][载入 custom 文件]]
+  - [[#定义一些固定的常量][定义一些固定的常量]]
+  - [[#常用的工具函数][常用的工具函数]]
+    - [[#重命名当前文件][重命名当前文件]]
+    - [[#删除当前文件][删除当前文件]]
+    - [[#清理-message-buffer][清理 Message buffer]]
+    - [[#开关网络代理][开关网络代理]]
+    - [[#清理掉没用的-buffer][清理掉没用的 buffer]]
+  - [[#基本设置][基本设置]]
+    - [[#用户信息][用户信息]]
+    - [[#增加-io-性能][增加 IO 性能]]
+    - [[#设置编码][设置编码]]
+    - [[#设置-frame-标题][设置 frame 标题]]
+    - [[#关闭启动动画][关闭启动动画]]
+    - [[#scratch-buffer-设置][scratch buffer 设置]]
+    - [[#yes-or-no-p-改为-y-or-n-p][yes-or-no-p 改为 y-or-n-p]]
+    - [[#关掉提示声音][关掉提示声音]]
+    - [[#禁止光标闪烁][禁止光标闪烁]]
+    - [[#启动时不要显示-for-information-about-gnu-emacs][启动时不要显示 For information about GNU Emacs...]]
+    - [[#tab-设置][tab 设置]]
+    - [[#一行不超过-120-字符][一行不超过 120 字符]]
+    - [[#删除文件时放到回收站][删除文件时放到回收站]]
+    - [[#高亮当前行][高亮当前行]]
+  - [[#使用-gcmh-优化垃圾回收][使用 gcmh 优化垃圾回收]]
+  - [[#自动保存-buffer][自动保存 buffer]]
+  - [[#rime-输入法][rime 输入法]]
+  - [[#字体和主题][字体和主题]]
+  - [[#图标字体安装][图标字体安装]]
+  - [[#modeline-设置][modeline 设置]]
+  - [[#hydra-方便的快捷键设置][hydra 方便的快捷键设置]]
+  - [[#读取最近文件][读取最近文件]]
+  - [[#更方便的弹出窗口][更方便的弹出窗口]]
+  - [[#自动同步外部文件改变][自动同步外部文件改变]]
+  - [[#minibuffer-补全及增强][minibuffer 补全及增强]]
+  - [[#avy-快速移动光标到屏幕上任意字符][avy 快速移动光标到屏幕上任意字符]]
+  - [[#ace-window-快速切换到其它-window][ace-window 快速切换到其它 window]]
+  - [[#快速切换到单窗口][快速切换到单窗口]]
+  - [[#代码片段][代码片段]]
+  - [[#project-设置][project 设置]]
+  - [[#智能括号插入][智能括号插入]]
+  - [[#lsp-bridge-代码补全][lsp-bridge 代码补全]]
+  - [[#高亮外层括号][高亮外层括号]]
+  - [[#注释代码][注释代码]]
+  - [[#git-配置][git 配置]]
+    - [[#magit][magit]]
+    - [[#显示当前行的最后提交信息][显示当前行的最后提交信息]]
+    - [[#smerge-mode-解决冲突][smerge-mode 解决冲突]]
+  - [[#可视化的正则替换][可视化的正则替换]]
+  - [[#递增选区][递增选区]]
+  - [[#openwith-外部工具打开文件][openwith 外部工具打开文件]]
+  - [[#启用-treesit][启用 treesit]]
+  - [[#elisp-配置][elisp 配置]]
+  - [[#c-开发配置][C++ 开发配置]]
+    - [[#cmake-ts-mode-设置][cmake-ts-mode 设置]]
+    - [[#c-ts-mode-设置][c-ts-mode 设置]]
+  - [[#rust-开发配置][Rust 开发配置]]
+  - [[#python-开发配置][python 开发配置]]
+  - [[#web-开发][web 开发]]
+    - [[#javascript][Javascript]]
+    - [[#typescript][Typescript]]
+    - [[#html][HTML]]
+    - [[#css][css]]
+  - [[#json-mode][json-mode]]
+  - [[#qml][qml]]
+  - [[#plantuml-支持][plantuml 支持]]
+  - [[#dap-mode-配置][dap-mode 配置]]
+  - [[#org-配置][org 配置]]
+    - [[#org-mode-美化设置][org-mode 美化设置]]
+    - [[#org-基本配置][org 基本配置]]
+    - [[#org-babel-设置][org babel 设置]]
+    - [[#gtd-配置][gtd 配置]]
+    - [[#export-设置][export 设置]]
+    - [[#生成-toc][生成 TOC]]
+  - [[#知识管理及博客配置][知识管理及博客配置]]
+    - [[#org-roam][org-roam]]
+    - [[#hugo-配置][hugo 配置]]
+    - [[#上传博客图片到腾讯云对象存储][上传博客图片到腾讯云对象存储]]
+    - [[#自动在中英文插入空格][自动在中英文插入空格]]
+    - [[#org-download-下载图片][org-download 下载图片]]
+  - [[#eaf-配置][eaf 配置]]
+  - [[#按键提示][按键提示]]
+  - [[#卸载默认的键绑定][卸载默认的键绑定]]
+  - [[#meow-模式编辑][meow 模式编辑]]
+  - [[#启动-emacs-server][启动 emacs server]]
+  - [[#将输入法切换到英文][将输入法切换到英文]]
+
 * early-init.el
 :PROPERTIES:
 :HEADER-ARGS: :tangle early-init.el
@@ -1345,7 +1445,6 @@ ref:https://github.com/manateelazycat/toggle-one-window
 #+end_src
 
 ** org 配置
-
 *** org-mode 美化设置
 
 #+begin_src elisp
@@ -1693,6 +1792,14 @@ ref:https://github.com/manateelazycat/toggle-one-window
                                       (insert-file-contents path)
                                       (buffer-string))))))
     )
+#+end_src
+
+*** 生成 TOC
+
+#+begin_src emacs-lisp
+  (use-package toc-org
+    :straight t
+    :commands (toc-org-insert-toc))
 #+end_src
 
 ** 知识管理及博客配置

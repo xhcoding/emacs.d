@@ -692,6 +692,14 @@ ref: https://github.com/manateelazycat/auto-save
     )
 #+end_src
 
+** undo 增强
+
+#+begin_src emacs-lisp
+  (use-package vundo
+    :straight t
+    :bind ("C-x u" . vundo))
+#+end_src
+
 ** avy 快速移动光标到屏幕上任意字符
 
 #+begin_src elisp

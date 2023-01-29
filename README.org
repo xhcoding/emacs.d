@@ -25,6 +25,21 @@ Emacs 启动过程的早期加载。
   (setq gc-cons-threshold most-positive-fixnum)
 #+end_src
 
+** file handler 临时设置为 nil，加快启动速度
+
+#+begin_src emacs-lisp
+  (unless (or (daemonp) noninteractive init-file-debug)
+    (let ((old-file-name-handler-alist file-name-handler-alist))
+      (setq file-name-handler-alist nil)
+      (add-hook 'emacs-startup-hook
+                (lambda ()
+                  "Recover file name handlers."
+                  (setq file-name-handler-alist
+                        (delete-dups (append file-name-handler-alist
+                                             old-file-name-handler-alist)))))))
+
+#+end_src
+
 ** 不要初始化 package
 
 #+begin_src elisp
@@ -117,6 +132,7 @@ Emacs 启动过程的早期加载。
 
   ;; 动态库目录
   (defconst my-lib-dir (expand-file-name "lib" user-emacs-directory))
+  (add-to-list 'load-path my-lib-dir)
 
   ;; 外部配置文件目录
   (defconst my-etc-dir (expand-file-name "etc" user-emacs-directory))
@@ -368,14 +384,14 @@ ref: https://github.com/manateelazycat/auto-save
     :defer t
     :init
     (setq rime--module-path
-	  (expand-file-name (concat "librime-emacs" module-file-suffix) my-lib-dir))
+          (expand-file-name (concat "librime-emacs" module-file-suffix) my-lib-dir))
     (when sys-is-windows
       (setq rime-share-data-dir (expand-file-name "rime-data" my-etc-dir)))
 
     (defun my-*require-rime(&rest _)
       "Require rime when toggle-input-method."
       (unless (featurep 'rime)
-	(require 'rime)))
+        (require 'rime)))
 
     (advice-add 'toggle-input-method :before #'my-*require-rime)
 
@@ -387,8 +403,8 @@ ref: https://github.com/manateelazycat/auto-save
     :config
     (setq
      rime-disable-predicates '(meow-normal-mode-p
-			       meow-motion-mode-p
-			       meow-keypad-mode-p))
+                               meow-motion-mode-p
+                               meow-keypad-mode-p))
     )
 
 #+end_src
@@ -548,6 +564,8 @@ ref: https://github.com/manateelazycat/auto-save
      consult-bookmark consult-recent-file
      consult--source-bookmark consult--source-recent-file
      :preview-key (kbd "M-."))
+    :bind (("C-x C-b" . consult-bookmark)
+           ("C-x C-i" . consult-imenu))
     :config
     (when sys-is-windows
       (add-to-list 'process-coding-system-alist '("es" gbk . gbk))
@@ -556,21 +574,21 @@ ref: https://github.com/manateelazycat/auto-save
 
     (defun consult--fd-builder (input)
       (pcase-let* ((`(,arg . ,opts) (consult--command-split input))
-		   (`(,re . ,hl) (funcall consult--regexp-compiler
-					  arg 'extended t)))
-	(when re
-	  (list :command (append
-			  (list "fd"
-				"--color=never" "--full-path"
-				(consult--join-regexps re 'extended))
-			  opts)
-		:highlight hl))))
+                   (`(,re . ,hl) (funcall consult--regexp-compiler
+                                          arg 'extended t)))
+        (when re
+          (list :command (append
+                          (list "fd"
+                                "--color=never" "--full-path"
+                                (consult--join-regexps re 'extended))
+                          opts)
+                :highlight hl))))
 
     (defun consult-fd (&optional dir initial)
       (interactive "P")
       (let* ((prompt-dir (consult--directory-prompt "Fd" dir))
-	     (default-directory (cdr prompt-dir)))
-	(find-file (consult--find (car prompt-dir) #'consult--fd-builder initial))))
+             (default-directory (cdr prompt-dir)))
+        (find-file (consult--find (car prompt-dir) #'consult--fd-builder initial))))
     )
 #+end_src
 
@@ -674,6 +692,33 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 
 #+end_src
+** 智能括号插入
+
+#+begin_src emacs-lisp
+  (use-package awesome-pair
+    :straight (awesome-pair :type git :host github :repo "manateelazycat/awesome-pair")
+    :defer t
+    :hook prog-mode
+    :bind (:map awesome-pair-mode-map
+                ("(" . awesome-pair-open-round)
+                ("[" . awesome-pair-open-bracket)
+                ("{" . awesome-pair-open-curly)
+                (")" . awesome-pair-close-round)
+                ("]" . awesome-pair-close-bracket)
+                ("}" . awesome-pair-close-curly)
+                ("=" . awesome-pair-equal)
+                ("\"" . awesome-pair-double-quote)
+                ("SPC" . awesome-pair-space)
+                ("RET" . awesome-pair-newline)
+                ("C-k" . awesome-pair-kill)
+                ("M-\"" . awesome-pair-wrap-double-quote)
+                ("M-[" . awesome-pair-wrap-bracket)
+                ("M-{" . awesome-pair-wrap-curly)
+                ("M-(" . awesome-pair-wrap-round)
+                ("M-]" . awesome-pair-unwrap)
+                ("M-n" . awesome-pair-jump-right)
+                ("M-p" . awesome-pair-jump-left)))
+#+end_src
 
 ** lsp-bridge 代码补全
 
@@ -771,14 +816,6 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 
   (add-hook 'emacs-lisp-mode-hook #'my-enable-lsp-bridge)
-#+end_src
-
-** 输入成对括号
-
-#+begin_src elisp
-  (use-package elec-pair
-    :hook (after-init . electric-pair-mode)
-    :init (setq electric-pair-inhibit-predicate 'electric-pair-conservative-inhibit))
 #+end_src
 
 ** 高亮外层括号
@@ -1020,8 +1057,14 @@ ref:https://github.com/manateelazycat/toggle-one-window
 		  (typescript-mode . typescript-ts-mode)))
 #+end_src
 
-** C++ 开发配置
+** elisp 配置
 
+#+begin_src emacs-lisp
+  (use-package elisp-mode
+    :hook ((emacs-lisp-mode . my-enable-lsp-bridge)))
+#+end_src
+
+** C++ 开发配置
 *** cmake-ts-mode 设置
 
 #+begin_src emacs-lisp
@@ -1072,6 +1115,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src emacs-lisp
   (use-package typescript-ts-mode
+    :mode "\\.ts\\'"
     :hook (typescript-ts-base-mode . my-enable-lsp-bridge))
 #+end_src
 
@@ -1373,10 +1417,10 @@ ref:https://github.com/manateelazycat/toggle-one-window
                       ("#+author:"                          . ?👤)
                       ("#+title:"                           . ?📓)
                       ("#+hugo_tags:"                       . ?📍)
-                      ("#+hugo_categories"                  . ?📁)
-                      ("#+hugo_locale"                      . ?🌐)
-                      ("#+hugo_draft"                       . ?🚮)
-                      ("#+hugo_custom_front_matter"         . ?📝)
+                      ("#+hugo_categories:"                 . ?📁)
+                      ("#+hugo_locale:"                     . ?🌐)
+                      ("#+hugo_draft:"                      . ?🚮)
+                      ("#+hugo_custom_front_matter:"        . ?📝)
                       ("#+begin_quote"                      . ?«)
                       ("#+end_quote"                        . ?»)
                       )))
@@ -1684,7 +1728,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
   ,#+title: ${title}
   ,#+date: %<%Y-%m-%d>
   ,#+author: xhcoding
-  ,#+hugo_custom_front_matter: :isCJKLanguage true
+  ,#+hugo_locale: zh
   ,#+hugo_tags:
   ,#+hugo_categories:
   ,#+hugo_draft: false
@@ -1824,7 +1868,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
             org-download-display-inline-images 'posframe
             org-download-abbreviate-filename-function 'expand-file-name))
     (setq-default org-download-image-dir my-blog-img-dir
-                  org-download-heading-lvl 2)
+                  org-download-heading-lvl nil)
     (defun my/org-download-clipboard()
       "Download from clipboard"
       (interactive)

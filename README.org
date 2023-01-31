@@ -362,12 +362,6 @@ Emacs 启动过程的早期加载。
     (setq file-name-coding-system 'gbk))
 #+end_src
 
-python 默认使用 UTF8 编码
-
-#+begin_src elisp
-  (setenv "PYTHONUTF8" "1")
-#+end_src
-
 *** 设置 frame 标题
 
 #+begin_src emacs-lisp
@@ -825,7 +819,8 @@ ref:https://github.com/manateelazycat/toggle-one-window
                 ("M-(" . awesome-pair-wrap-round)
                 ("M-]" . awesome-pair-unwrap)
                 ("M-n" . awesome-pair-jump-right)
-                ("M-p" . awesome-pair-jump-left)))
+                ("M-p" . awesome-pair-jump-left)
+                ("M-RET" . awesome-pair-jump-out-pair-and-newline)))
 #+end_src
 
 ** lsp-bridge 代码补全
@@ -948,6 +943,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package magit
+    :disabled
     :straight t
     :bind ("C-x g" . magit-status)
     :config
@@ -955,6 +951,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
       (setenv "GIT_ASKPASS" "git-gui--askpass")))
 
   (use-package magit-todos
+    :disabled
     :straight t
     :after magit
     :config
@@ -962,6 +959,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 
   (use-package ssh-agency
+    :disabled
     :straight t
     :after magit)
 #+end_src
@@ -2001,7 +1999,8 @@ ref:https://github.com/manateelazycat/toggle-one-window
                           :files ("*")
                           :build nil)
     :defer t
-    :commands (eaf-open eaf-open-browser eaf-open-this-buffer)
+    :commands (eaf-open eaf-open-browser eaf-open-this-buffer eaf-open-git)
+    :bind ("C-x g" . eaf-open-git)
     :init
     ;; 手动添加到 load-path
     (add-to-list 'load-path (straight--repos-dir "emacs-application-framework"))
@@ -2011,6 +2010,8 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (require 'eaf-pdf-viewer)
     (require 'eaf-org-previewer)
     (require 'eaf-markdown-previewer)
+    (require 'eaf-git)
+    (setq eaf-git-diff-render-by-delta t)
     )
 
 #+end_src

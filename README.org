@@ -1,3 +1,5 @@
+Emacs config for Windows11
+
 * 安装方法
 
 1. 下载配置文件
@@ -25,26 +27,7 @@
   - [[#载入-custom-文件][载入 custom 文件]]
   - [[#定义一些固定的常量][定义一些固定的常量]]
   - [[#常用的工具函数][常用的工具函数]]
-    - [[#重命名当前文件][重命名当前文件]]
-    - [[#删除当前文件][删除当前文件]]
-    - [[#清理-message-buffer][清理 Message buffer]]
-    - [[#开关网络代理][开关网络代理]]
-    - [[#清理掉没用的-buffer][清理掉没用的 buffer]]
   - [[#基本设置][基本设置]]
-    - [[#用户信息][用户信息]]
-    - [[#增加-io-性能][增加 IO 性能]]
-    - [[#设置编码][设置编码]]
-    - [[#设置-frame-标题][设置 frame 标题]]
-    - [[#关闭启动动画][关闭启动动画]]
-    - [[#scratch-buffer-设置][scratch buffer 设置]]
-    - [[#yes-or-no-p-改为-y-or-n-p][yes-or-no-p 改为 y-or-n-p]]
-    - [[#关掉提示声音][关掉提示声音]]
-    - [[#禁止光标闪烁][禁止光标闪烁]]
-    - [[#启动时不要显示-for-information-about-gnu-emacs][启动时不要显示 For information about GNU Emacs...]]
-    - [[#tab-设置][tab 设置]]
-    - [[#一行不超过-120-字符][一行不超过 120 字符]]
-    - [[#删除文件时放到回收站][删除文件时放到回收站]]
-    - [[#高亮当前行][高亮当前行]]
   - [[#使用-gcmh-优化垃圾回收][使用 gcmh 优化垃圾回收]]
   - [[#自动保存-buffer][自动保存 buffer]]
   - [[#rime-输入法][rime 输入法]]
@@ -56,6 +39,7 @@
   - [[#更方便的弹出窗口][更方便的弹出窗口]]
   - [[#自动同步外部文件改变][自动同步外部文件改变]]
   - [[#minibuffer-补全及增强][minibuffer 补全及增强]]
+  - [[#undo-增强][undo 增强]]
   - [[#avy-快速移动光标到屏幕上任意字符][avy 快速移动光标到屏幕上任意字符]]
   - [[#ace-window-快速切换到其它-window][ace-window 快速切换到其它 window]]
   - [[#快速切换到单窗口][快速切换到单窗口]]
@@ -66,42 +50,23 @@
   - [[#高亮外层括号][高亮外层括号]]
   - [[#注释代码][注释代码]]
   - [[#git-配置][git 配置]]
-    - [[#magit][magit]]
-    - [[#显示当前行的最后提交信息][显示当前行的最后提交信息]]
-    - [[#smerge-mode-解决冲突][smerge-mode 解决冲突]]
   - [[#可视化的正则替换][可视化的正则替换]]
   - [[#递增选区][递增选区]]
   - [[#openwith-外部工具打开文件][openwith 外部工具打开文件]]
   - [[#启用-treesit][启用 treesit]]
   - [[#elisp-配置][elisp 配置]]
   - [[#c-开发配置][C++ 开发配置]]
-    - [[#cmake-ts-mode-设置][cmake-ts-mode 设置]]
-    - [[#c-ts-mode-设置][c-ts-mode 设置]]
   - [[#rust-开发配置][Rust 开发配置]]
   - [[#python-开发配置][python 开发配置]]
   - [[#web-开发][web 开发]]
-    - [[#javascript][Javascript]]
-    - [[#typescript][Typescript]]
-    - [[#html][HTML]]
-    - [[#css][css]]
   - [[#json-mode][json-mode]]
   - [[#qml][qml]]
   - [[#plantuml-支持][plantuml 支持]]
   - [[#dap-mode-配置][dap-mode 配置]]
   - [[#org-配置][org 配置]]
-    - [[#org-mode-美化设置][org-mode 美化设置]]
-    - [[#org-基本配置][org 基本配置]]
-    - [[#org-babel-设置][org babel 设置]]
-    - [[#gtd-配置][gtd 配置]]
-    - [[#export-设置][export 设置]]
-    - [[#生成-toc][生成 TOC]]
   - [[#知识管理及博客配置][知识管理及博客配置]]
-    - [[#org-roam][org-roam]]
-    - [[#hugo-配置][hugo 配置]]
-    - [[#上传博客图片到腾讯云对象存储][上传博客图片到腾讯云对象存储]]
-    - [[#自动在中英文插入空格][自动在中英文插入空格]]
-    - [[#org-download-下载图片][org-download 下载图片]]
   - [[#eaf-配置][eaf 配置]]
+  - [[#邮件配置][邮件配置]]
   - [[#按键提示][按键提示]]
   - [[#卸载默认的键绑定][卸载默认的键绑定]]
   - [[#meow-模式编辑][meow 模式编辑]]
@@ -233,6 +198,12 @@ Emacs 启动过程的早期加载。
   ;; 动态库目录
   (defconst my-lib-dir (expand-file-name "lib" user-emacs-directory))
   (add-to-list 'load-path my-lib-dir)
+
+  ;; 可执行文件目录
+  (defconst my-bin-dir (expand-file-name "bin" user-emacs-directory))
+  ;; 将 my-bin-dir 加入到 PATH 中
+  (setenv "PATH" (concat my-bin-dir (if sys-is-windows ";" ":") (getenv "PATH")))
+
 
   ;; 外部配置文件目录
   (defconst my-etc-dir (expand-file-name "etc" user-emacs-directory))
@@ -1175,6 +1146,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src emacs-lisp
   (use-package cmake-ts-mode
+    :mode "CMakeLists.txt\\'"
     :hook (cmake-ts-mode . my-enable-lsp-bridge))
 #+end_src
 
@@ -2006,14 +1978,96 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (add-to-list 'load-path (straight--repos-dir "emacs-application-framework"))
     :config
     (setq eaf-webengine-default-zoom 2.5)
+    (when sys-is-windows
+      (setq eaf-chrome-bookmark-file (expand-file-name "~/AppData/Local/Microsoft/Edge/User Data/Default/Bookmarks")))
     (require 'eaf-browser)
     (require 'eaf-pdf-viewer)
     (require 'eaf-org-previewer)
     (require 'eaf-markdown-previewer)
     (require 'eaf-git)
-    (setq eaf-git-diff-render-by-delta t)
+    (setq eaf-git-light-highlight-style "emacs")
     )
 
+#+end_src
+
+** 邮件配置
+
+*** Wanderlust 邮件前端
+
+Wanderlust + offlineimap3 + mu
+
+#+begin_src emacs-lisp
+  (use-package wl
+    :straight (wanderlust)
+    :defer t
+    :hook ((wl . meow-motion-mode))
+    :bind (:map wl-folder-mode-map
+                ("q" . wl-folder-suspend))
+    :init
+    (setq wl-init-file (expand-file-name "wl.el" my-private-dir)
+          wl-folders-file (expand-file-name "folders.wl" my-private-dir)
+          wl-address-file (expand-file-name "address.wl" my-private-dir))
+    :config
+    (if (boundp 'mail-user-agent)
+        (setq mail-user-agent 'wl-user-agent))
+    (if (fboundp 'define-mail-user-agent)
+        (define-mail-user-agent
+          'wl-user-agent
+          'wl-user-agent-compose
+          'wl-draft-send
+          'wl-draft-kill
+          'mail-send-hook))
+    (setq wl-quicksearch-folder "[]")
+
+    ;; windows 上 mu find 返回的路径以 /cygdrive/ 开头，我们需要自己处理一下
+    (defun my--elmo-search-parse-filename-list ()
+      (let (bol locations)
+        (goto-char (point-min))
+        (while (not (eobp))
+          (beginning-of-line)
+          (when (and elmo-search-use-drive-letter
+                     (looking-at "^\\(/cygdrive/\\)?\\([A-Za-z]\\)\\([:|]\\)?/"))
+            (replace-match "/\\2:/")
+            (beginning-of-line))
+          (unless (looking-at "^file://")
+            (insert "file://")
+            (beginning-of-line))
+          (setq bol (point))
+          (end-of-line)
+          (setq locations (cons (buffer-substring bol (point)) locations))
+          (forward-line))
+        (nreverse locations)))
+
+
+    (elmo-search-register-engine
+     'mu-msys 'local-file
+     :prog "mu"
+     :args '("find" elmo-search-split-pattern-list "--fields" "l")
+     :charset 'utf-8
+     :parser 'my--elmo-search-parse-filename-list)
+
+    (setq elmo-search-default-engine 'mu-msys)
+
+    ;; mu 的输入要用 gbk 编码，不然无法输入中文
+    (add-to-list 'process-coding-system-alist '("mu" utf-8 . gbk))
+    )
+
+
+#+end_src
+
+*** alert-toast 邮件通知
+
+#+begin_src emacs-lisp
+  (use-package alert-toast
+    :straight t
+    :after wl
+    :config
+    (defun my--notify-new-mail-arrived (number)
+      (alert-toast-notify `(:title "Wanderlust" :message ,(format "你有 %s 封未读邮件" number))))
+
+    (add-hook 'wl-biff-new-mail-hook #'my--notify-new-mail-arrived)
+
+    )
 #+end_src
 
 ** 按键提示
@@ -2023,6 +2077,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :straight t
     :hook (after-init . which-key-mode))
 #+end_src
+
 
 ** 卸载默认的键绑定
 
@@ -2043,7 +2098,6 @@ ref: https://github.com/manateelazycat/lazy-load
 
   (lazy-load-unset-keys
    '("C-s"
-     "C-x b"
      ))
 #+end_src
 

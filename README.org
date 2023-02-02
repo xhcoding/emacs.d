@@ -1,4 +1,11 @@
-Emacs config for Windows11
+#+html: <p align="center"><img src="images/emacs-logo.svg" width=150 height=150/></p>
+#+html: <p align="center"><a href="https://www.gnu.org/software/emacs/"><b>GNU Emacs</b></a></p>
+#+html: <p align="center">
+#+html:	<a href="https://github.com/emacs-mirror/emacs"><img src="https://img.shields.io/badge/GNU%20Emacs-master-b48ead.svg?style=flat-square"/></a>
+#+html:    <a href ="https://github.com/xhcoding/.emacs.d"><img src="https://img.shields.io/badge/-Windows11-1e81ff?logo=windows&style=flat"/></a>
+#+html: </p>
+#+html: <p align="center">A simple Emacs config on Windows</p>
+
 
 * 安装方法
 
@@ -6,7 +13,7 @@ Emacs config for Windows11
    #+begin_src shell
      git clone https://github.com/xhcoding/.emacs.d.git ~/.emacs.d
    #+end_src
-2. 运行 org-tangle.bat 导出配置到 .el 文件
+2. 运行 =org-tangle.bat= 生成 =.el= 文件
 
 3. 启动 emacs
 
@@ -27,7 +34,26 @@ Emacs config for Windows11
   - [[#载入-custom-文件][载入 custom 文件]]
   - [[#定义一些固定的常量][定义一些固定的常量]]
   - [[#常用的工具函数][常用的工具函数]]
+    - [[#重命名当前文件][重命名当前文件]]
+    - [[#删除当前文件][删除当前文件]]
+    - [[#清理-message-buffer][清理 Message buffer]]
+    - [[#开关网络代理][开关网络代理]]
+    - [[#清理掉没用的-buffer][清理掉没用的 buffer]]
   - [[#基本设置][基本设置]]
+    - [[#用户信息][用户信息]]
+    - [[#增加-io-性能][增加 IO 性能]]
+    - [[#设置编码][设置编码]]
+    - [[#设置-frame-标题][设置 frame 标题]]
+    - [[#关闭启动动画][关闭启动动画]]
+    - [[#scratch-buffer-设置][scratch buffer 设置]]
+    - [[#yes-or-no-p-改为-y-or-n-p][yes-or-no-p 改为 y-or-n-p]]
+    - [[#关掉提示声音][关掉提示声音]]
+    - [[#禁止光标闪烁][禁止光标闪烁]]
+    - [[#启动时不要显示-for-information-about-gnu-emacs][启动时不要显示 For information about GNU Emacs...]]
+    - [[#tab-设置][tab 设置]]
+    - [[#一行不超过-120-字符][一行不超过 120 字符]]
+    - [[#删除文件时放到回收站][删除文件时放到回收站]]
+    - [[#高亮当前行][高亮当前行]]
   - [[#使用-gcmh-优化垃圾回收][使用 gcmh 优化垃圾回收]]
   - [[#自动保存-buffer][自动保存 buffer]]
   - [[#rime-输入法][rime 输入法]]
@@ -50,23 +76,46 @@ Emacs config for Windows11
   - [[#高亮外层括号][高亮外层括号]]
   - [[#注释代码][注释代码]]
   - [[#git-配置][git 配置]]
+    - [[#magit][magit]]
+    - [[#显示当前行的最后提交信息][显示当前行的最后提交信息]]
+    - [[#smerge-mode-解决冲突][smerge-mode 解决冲突]]
   - [[#可视化的正则替换][可视化的正则替换]]
   - [[#递增选区][递增选区]]
   - [[#openwith-外部工具打开文件][openwith 外部工具打开文件]]
   - [[#启用-treesit][启用 treesit]]
   - [[#elisp-配置][elisp 配置]]
   - [[#c-开发配置][C++ 开发配置]]
+    - [[#cmake-ts-mode-设置][cmake-ts-mode 设置]]
+    - [[#c-ts-mode-设置][c-ts-mode 设置]]
   - [[#rust-开发配置][Rust 开发配置]]
   - [[#python-开发配置][python 开发配置]]
   - [[#web-开发][web 开发]]
+    - [[#javascript][Javascript]]
+    - [[#typescript][Typescript]]
+    - [[#html][HTML]]
+    - [[#css][css]]
   - [[#json-mode][json-mode]]
   - [[#qml][qml]]
   - [[#plantuml-支持][plantuml 支持]]
   - [[#dap-mode-配置][dap-mode 配置]]
   - [[#org-配置][org 配置]]
+    - [[#org-mode-美化设置][org-mode 美化设置]]
+    - [[#org-基本配置][org 基本配置]]
+    - [[#org-babel-设置][org babel 设置]]
+    - [[#gtd-配置][gtd 配置]]
+    - [[#export-设置][export 设置]]
+    - [[#生成-toc][生成 TOC]]
+    - [[#org-contrib-wanderlust-支持][org-contrib wanderlust 支持]]
   - [[#知识管理及博客配置][知识管理及博客配置]]
+    - [[#org-roam][org-roam]]
+    - [[#hugo-配置][hugo 配置]]
+    - [[#上传博客图片到腾讯云对象存储][上传博客图片到腾讯云对象存储]]
+    - [[#自动在中英文插入空格][自动在中英文插入空格]]
+    - [[#org-download-下载图片][org-download 下载图片]]
   - [[#eaf-配置][eaf 配置]]
   - [[#邮件配置][邮件配置]]
+    - [[#wanderlust-邮件前端][Wanderlust 邮件前端]]
+    - [[#alert-toast-邮件通知][alert-toast 邮件通知]]
   - [[#elfeed-rss-订阅][elfeed RSS 订阅]]
   - [[#按键提示][按键提示]]
   - [[#卸载默认的键绑定][卸载默认的键绑定]]
@@ -1784,7 +1833,9 @@ ref:https://github.com/manateelazycat/toggle-one-window
 #+begin_src emacs-lisp
   (use-package toc-org
     :straight t
-    :commands (toc-org-insert-toc))
+    :commands (toc-org-insert-toc)
+    :custom
+    (toc-org-max-depth 3))
 #+end_src
 
 *** org-contrib wanderlust 支持
@@ -2140,28 +2191,21 @@ Wanderlust + offlineimap3 + mu
     :straight t
     :defer
     :bind (:map elfeed-search-mode-map
-                ("RET" . eaf-elfeed-open-url))
+                ("RET" . my-eaf-elfeed-open-url))
     :config
-    (defun eaf-elfeed-open-url ()
+    (defun my-eaf-elfeed-open-url ()
       "Display the currently selected item in an eaf buffer."
       (interactive)
-      (if (featurep 'elfeed)
-          (let ((entry (elfeed-search-selected :ignore-region)))
+      (let ((entry (elfeed-search-selected :ignore-region)))
             (require 'elfeed-show)
             (when (elfeed-entry-p entry)
               ;; Move to next feed item.
               (elfeed-untag entry 'unread)
               (elfeed-search-update-entry entry)
               (unless elfeed-search-remain-on-entry (forward-line))
-
-              ;; Open elfeed item in other window,
-              ;; and scroll EAF browser content by command `scroll-other-window'.
-              (delete-other-windows)
+              (my/toggle-one-window)
               (eaf-open-browser (elfeed-entry-link entry))
-              ))
-        (message "Please install elfeed first.")))
-
-    (setq eaf-elfeed-split-direction "right")
+              )))
     )
 
   (use-package elfeed-org

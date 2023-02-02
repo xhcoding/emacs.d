@@ -1967,13 +1967,49 @@ ref:https://github.com/manateelazycat/toggle-one-window
       (setq org-download-screenshot-method "irfanview /capture=4 /convert=\"%s\""
             org-download-display-inline-images 'posframe
             org-download-abbreviate-filename-function 'expand-file-name))
+
     (setq-default org-download-image-dir my-blog-img-dir
                   org-download-heading-lvl nil)
+
+
+    ;; 截图的名称不要总是 screenshot
+    (defun my/org-download-screenshot ()
+      "Capture screenshot and insert the resulting file.
+  The screenshot tool is determined by `org-download-screenshot-method'."
+      (interactive)
+      (let* ((screenshot-dir (file-name-directory org-download-screenshot-file))
+             (org-download-screenshot-file
+              (expand-file-name (concat (file-name-sans-extension (file-name-nondirectory (buffer-file-name))) ".png") screenshot-dir)))
+        (make-directory screenshot-dir t)
+        (if (functionp org-download-screenshot-method)
+            (funcall org-download-screenshot-method
+                     org-download-screenshot-file)
+          (shell-command-to-string
+           (format org-download-screenshot-method
+                   org-download-screenshot-file)))
+        (when (file-exists-p org-download-screenshot-file)
+          (org-download-image org-download-screenshot-file)
+          (delete-file org-download-screenshot-file))))
+
     (defun my/org-download-clipboard()
       "Download from clipboard"
       (interactive)
       (let ((org-download-screenshot-method "irfanview /clippaste /convert=\"%s\""))
-        (org-download-screenshot))))
+        (my/org-download-screenshot)))
+
+    ;; 将图片保存到当前 buffer 名称目录下
+    ;; ref: https://github.com/abo-abo/org-download/issues/195
+    (defun my-org-download-method (link)
+      (let ((filename
+             (file-name-nondirectory
+              (car (url-path-and-query
+                    (url-generic-parse-url link)))))
+            (dirname (expand-file-name (file-name-sans-extension (file-name-nondirectory       (buffer-file-name))) my-blog-img-dir)))
+        (make-directory dirname t)
+        (expand-file-name (funcall org-download-file-format-function filename) dirname)))
+    (setq org-download-method 'my-org-download-method)
+
+    )
 
 
 #+end_src
@@ -2071,6 +2107,15 @@ Wanderlust + offlineimap3 + mu
     )
 
 
+#+end_src
+
+调用 compose-mail 前先 require wanderlust
+
+#+begin_src emacs-lisp
+  (defun my-*require-wanderlust (&rest _)
+    (require 'wl))
+
+  (advice-add 'compose-mail :before #'my-*require-wanderlust)
 #+end_src
 
 *** alert-toast 邮件通知

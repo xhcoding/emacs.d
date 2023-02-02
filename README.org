@@ -1568,6 +1568,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
                 ("<" . my/insert-org-template))
     :custom
     (org-directory my-org-dir)
+    (org-modules '(ol-wl))
     :config
     ;; For hydra
     (defun hot-expand (str &optional mod)
@@ -1700,9 +1701,14 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
     :custom
     (org-agenda-files `(,my-org-inbox-file ,my-org-projects-file))
+    (org-link-email-description-format "%s 📧 %f")
     (org-capture-templates `(("i" "Inbox" entry
                               (file ,my-org-inbox-file)
                               ,(concat "* TODO %?\n"
+                                       "/Entered on/ %U"))
+                             ("e" "Inbox [Mail]" entry
+                              (file ,my-org-inbox-file)
+                              ,(concat "* TODO Process \"%a\" %?\n"
                                        "/Entered on/ %U"))))
     (org-todo-keywords
      '((sequence "TODO(t)" "NEXT(n)" "HOLD(h)" "|" "DONE(d)" "CANCELLED(c)")))
@@ -1721,34 +1727,34 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (org-agenda-span 'day)
     (org-agenda-hide-tags-regexp ".")
     (org-agenda-prefix-format
-        '((agenda . " %i %-12:c%?-12t% s")
-          (todo   . " ")
-          (tags   . " %i %-12:c")
-          (search . " %i %-12:c")))
+     '((agenda . " %i %-12:c%?-12t% s")
+       (todo   . " ")
+       (tags   . " %i %-12:c")
+       (search . " %i %-12:c")))
 
     (org-agenda-custom-commands
-        '(("g" "Get Things Done (GTD)"
-           ((agenda ""
-                    ((org-agenda-skip-function
-                      '(org-agenda-skip-entry-if 'deadline))
-                     (org-deadline-warning-days 0)))
-            (todo "NEXT"
-                  ((org-agenda-skip-function
-                    '(org-agenda-skip-entry-if 'deadline))
-                   (org-agenda-prefix-format "  %i %-12:c ")
-                   (org-agenda-overriding-header "\nTasks\n")))
-            (agenda nil
-                    ((org-agenda-entry-types '(:deadline))
-                     (org-agenda-format-date "")
-                     (org-deadline-warning-days 7)
-                     (org-agenda-skip-function
-                      '(org-agenda-skip-entry-if 'notregexp "\\* NEXT"))
-                     (org-agenda-overriding-header "\nDeadlines")))
-            (tags-todo "inbox"
-                       ((org-agenda-prefix-format "  %?-12t% s")
-                        (org-agenda-overriding-header "\nInbox\n")))
-            (tags "CLOSED>\"<today>\""
-                  ((org-agenda-overriding-header "\nCompleted today\n")))))))
+     '(("g" "Get Things Done (GTD)"
+        ((agenda ""
+                 ((org-agenda-skip-function
+                   '(org-agenda-skip-entry-if 'deadline))
+                  (org-deadline-warning-days 0)))
+         (todo "NEXT"
+               ((org-agenda-skip-function
+                 '(org-agenda-skip-entry-if 'deadline))
+                (org-agenda-prefix-format "  %i %-12:c ")
+                (org-agenda-overriding-header "\nTasks\n")))
+         (agenda nil
+                 ((org-agenda-entry-types '(:deadline))
+                  (org-agenda-format-date "")
+                  (org-deadline-warning-days 7)
+                  (org-agenda-skip-function
+                   '(org-agenda-skip-entry-if 'notregexp "\\* NEXT"))
+                  (org-agenda-overriding-header "\nDeadlines")))
+         (tags-todo "inbox"
+                    ((org-agenda-prefix-format "  %?-12t% s")
+                     (org-agenda-overriding-header "\nInbox\n")))
+         (tags "CLOSED>\"<today>\""
+               ((org-agenda-overriding-header "\nCompleted today\n")))))))
 
 
 
@@ -1779,6 +1785,14 @@ ref:https://github.com/manateelazycat/toggle-one-window
   (use-package toc-org
     :straight t
     :commands (toc-org-insert-toc))
+#+end_src
+
+*** org-contrib wanderlust 支持
+
+#+begin_src elisp
+  (use-package org-contrib
+    :straight t
+    :after org)
 #+end_src
 
 ** 知识管理及博客配置
@@ -2003,7 +2017,7 @@ Wanderlust + offlineimap3 + mu
     :defer t
     :hook ((wl . meow-motion-mode))
     :bind (:map wl-folder-mode-map
-                ("q" . wl-folder-suspend))
+                (("q" . wl-folder-suspend)))
     :init
     (setq wl-init-file (expand-file-name "wl.el" my-private-dir)
           wl-folders-file (expand-file-name "folders.wl" my-private-dir)
@@ -2051,6 +2065,9 @@ Wanderlust + offlineimap3 + mu
 
     ;; mu 的输入要用 gbk 编码，不然无法输入中文
     (add-to-list 'process-coding-system-alist '("mu" utf-8 . gbk))
+
+    ;; mime 附件保存目录
+    (setq mime-save-directory (expand-file-name "mails" my-archives-dir))
     )
 
 

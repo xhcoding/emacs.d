@@ -67,6 +67,7 @@ Emacs config for Windows11
   - [[#知识管理及博客配置][知识管理及博客配置]]
   - [[#eaf-配置][eaf 配置]]
   - [[#邮件配置][邮件配置]]
+  - [[#elfeed-rss-订阅][elfeed RSS 订阅]]
   - [[#按键提示][按键提示]]
   - [[#卸载默认的键绑定][卸载默认的键绑定]]
   - [[#meow-模式编辑][meow 模式编辑]]
@@ -2068,6 +2069,45 @@ Wanderlust + offlineimap3 + mu
     (add-hook 'wl-biff-new-mail-hook #'my--notify-new-mail-arrived)
 
     )
+#+end_src
+
+** elfeed RSS 订阅
+
+#+begin_src emacs-lisp
+  (use-package elfeed
+    :straight t
+    :defer
+    :bind (:map elfeed-search-mode-map
+                ("RET" . eaf-elfeed-open-url))
+    :config
+    (defun eaf-elfeed-open-url ()
+      "Display the currently selected item in an eaf buffer."
+      (interactive)
+      (if (featurep 'elfeed)
+          (let ((entry (elfeed-search-selected :ignore-region)))
+            (require 'elfeed-show)
+            (when (elfeed-entry-p entry)
+              ;; Move to next feed item.
+              (elfeed-untag entry 'unread)
+              (elfeed-search-update-entry entry)
+              (unless elfeed-search-remain-on-entry (forward-line))
+
+              ;; Open elfeed item in other window,
+              ;; and scroll EAF browser content by command `scroll-other-window'.
+              (delete-other-windows)
+              (eaf-open-browser (elfeed-entry-link entry))
+              ))
+        (message "Please install elfeed first.")))
+
+    (setq eaf-elfeed-split-direction "right")
+    )
+
+  (use-package elfeed-org
+    :straight t
+    :after elfeed
+    :config
+    (elfeed-org)
+    (setq rmh-elfeed-org-files `(,(expand-file-name "elfeed.org" my-org-dir))))
 #+end_src
 
 ** 按键提示

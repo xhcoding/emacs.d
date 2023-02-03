@@ -445,7 +445,9 @@ scratch buffer 内容为空
 
 #+begin_src elisp
   (setq-default fill-column 120)
+  (column-number-mode +1)
 #+end_src
+
 
 *** 删除文件时放到回收站
 
@@ -1766,7 +1768,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (org-refile-targets '((nil :maxlevel . 9)
                           (org-agenda-files :maxlevel . 9)))
 
-    (org-refile-use-outline-path t)
+   (org-refile-use-outline-path t)
     (org-outline-path-complete-in-steps nil)
     (org-refile-allow-creating-parent-nodes 'confirm)
     (org-refile-target-verify-function 'my--verify-refile-target)
@@ -2029,8 +2031,15 @@ ref:https://github.com/manateelazycat/toggle-one-window
   The screenshot tool is determined by `org-download-screenshot-method'."
       (interactive)
       (let* ((screenshot-dir (file-name-directory org-download-screenshot-file))
-             (org-download-screenshot-file
-              (expand-file-name (concat (file-name-sans-extension (file-name-nondirectory (buffer-file-name))) ".png") screenshot-dir)))
+             (org-file-path (buffer-file-name))
+             (org-file-name (file-name-sans-extension (file-name-nondirectory org-file-path)))
+             (new-screenshot-name (concat org-file-name ".png"))
+             (new-screenshot-path (expand-file-name  new-screenshot-name screenshot-dir)))
+        (when (and (featurep 'org-roam) (string-prefix-p org-roam-directory org-file-path))
+          (setq new-screenshot-name 
+                (substring new-screenshot-name (+ 1 (string-match-p "-" new-screenshot-name)))
+                new-screenshot-path
+                (expand-file-name new-screenshot-name screenshot-dir)))
         (make-directory screenshot-dir t)
         (if (functionp org-download-screenshot-method)
             (funcall org-download-screenshot-method
@@ -2039,8 +2048,9 @@ ref:https://github.com/manateelazycat/toggle-one-window
            (format org-download-screenshot-method
                    org-download-screenshot-file)))
         (when (file-exists-p org-download-screenshot-file)
-          (org-download-image org-download-screenshot-file)
-          (delete-file org-download-screenshot-file))))
+          (rename-file org-download-screenshot-file new-screenshot-path)
+          (org-download-image new-screenshot-path)
+          (delete-file new-screenshot-path))))
 
     (defun my/org-download-clipboard()
       "Download from clipboard"
@@ -2051,16 +2061,20 @@ ref:https://github.com/manateelazycat/toggle-one-window
     ;; 将图片保存到当前 buffer 名称目录下
     ;; ref: https://github.com/abo-abo/org-download/issues/195
     (defun my-org-download-method (link)
-      (let ((filename
+      (let* ((filename
              (file-name-nondirectory
               (car (url-path-and-query
                     (url-generic-parse-url link)))))
-            (dirname (expand-file-name (file-name-sans-extension (file-name-nondirectory       (buffer-file-name))) my-blog-img-dir)))
+            (org-file-path (buffer-file-name))
+            (org-file-name (file-name-sans-extension (file-name-nondirectory org-file-path)))
+            (dirname (expand-file-name org-file-name my-blog-img-dir)))
+        (when (and (featurep 'org-roam) (string-prefix-p org-roam-directory org-file-path))
+          (setq dirname (expand-file-name 
+                         (substring org-file-name (+ 1 (string-match-p "-" org-file-name)))
+                         my-blog-img-dir)))
         (make-directory dirname t)
         (expand-file-name (funcall org-download-file-format-function filename) dirname)))
-    (setq org-download-method 'my-org-download-method)
-
-    )
+    (setq org-download-method 'my-org-download-method))
 
 
 #+end_src
@@ -2120,6 +2134,19 @@ Wanderlust + offlineimap3 + mu
           'wl-draft-kill
           'mail-send-hook))
     (setq wl-quicksearch-folder "[]")
+  
+    (setq wl-message-ignored-field-list
+        '(".")
+        wl-message-visible-field-list
+        '("^\\(To\\|Cc\\):"
+          "^Subject:"
+          "^\\(From\\|Reply-To\\):"
+          "^\\(Posted\\|Date\\):"
+          "^Organization:"
+          "^X-\\(Face\\(-[0-9]+\\)?\\|Weather\\|Fortune\\|Now-Playing\\):")
+        wl-message-sort-field-list
+        (append wl-message-sort-field-list
+                '("^Reply-To" "^Posted" "^Date" "^Organization")))
 
     ;; windows 上 mu find 返回的路径以 /cygdrive/ 开头，我们需要自己处理一下
     (defun my--elmo-search-parse-filename-list ()

@@ -820,30 +820,30 @@ ref:https://github.com/manateelazycat/toggle-one-window
 ** 智能括号插入
 
 #+begin_src emacs-lisp
-  (use-package awesome-pair
-    :straight (awesome-pair :type git :host github :repo "manateelazycat/awesome-pair")
+  (use-package fingertip
+    :straight (fingertip :type git :host github :repo "manateelazycat/fingertip")
     :defer t
     :hook prog-mode
-    :bind (:map awesome-pair-mode-map
-                ("(" . awesome-pair-open-round)
-                ("[" . awesome-pair-open-bracket)
-                ("{" . awesome-pair-open-curly)
-                (")" . awesome-pair-close-round)
-                ("]" . awesome-pair-close-bracket)
-                ("}" . awesome-pair-close-curly)
-                ("=" . awesome-pair-equal)
-                ("\"" . awesome-pair-double-quote)
-                ("SPC" . awesome-pair-space)
-                ("RET" . awesome-pair-newline)
-                ("C-k" . awesome-pair-kill)
-                ("M-\"" . awesome-pair-wrap-double-quote)
-                ("M-[" . awesome-pair-wrap-bracket)
-                ("M-{" . awesome-pair-wrap-curly)
-                ("M-(" . awesome-pair-wrap-round)
-                ("M-]" . awesome-pair-unwrap)
-                ("M-n" . awesome-pair-jump-right)
-                ("M-p" . awesome-pair-jump-left)
-                ("M-RET" . awesome-pair-jump-out-pair-and-newline)))
+    :bind (:map fingertip-mode-map
+                ("(" . fingertip-open-round)
+                ("[" . fingertip-open-bracket)
+                ("{" . fingertip-open-curly)
+                (")" . fingertip-close-round)
+                ("]" . fingertip-close-bracket)
+                ("}" . fingertip-close-curly)
+                ("=" . fingertip-equal)
+                ("\"" . fingertip-double-quote)
+                ("SPC" . fingertip-space)
+                ("RET". fingertip-newline)
+                ("C-k" . fingertip-kill)
+                ("M-\"" . fingertip-wrap-double-quote)
+                ("M-[" . fingertip-wrap-bracket)
+                ("M-{" . fingertip-wrap-curly)
+                ("M-(" . fingertip-wrap-round)
+                ("M-]" . fingertip-unwrap)
+                ("M-n" . fingertip-jump-right)
+                ("M-p" . fingertip-jump-left)
+                ("M-RET" . fingertip-jump-out-pair-and-newline)))
 #+end_src
 
 ** lsp-bridge 代码补全
@@ -941,7 +941,6 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (lsp-bridge-mode))
 
 
-  (add-hook 'emacs-lisp-mode-hook #'my-enable-lsp-bridge)
 #+end_src
 
 ** 高亮外层括号
@@ -1186,11 +1185,23 @@ ref:https://github.com/manateelazycat/toggle-one-window
 		  (typescript-mode . typescript-ts-mode)))
 #+end_src
 
+** ts-fold 基于 treesit 的代码折叠
+
+#+begin_src emacs-lisp
+  (use-package ts-fold
+    :straight (ts-fold :type git :host github :repo "AndrewSwerlick/ts-fold" :branch "andrew-sw/treesit-el-support")
+    :bind ("M-z" . ts-fold-toggle))
+#+end_src
+
 ** elisp 配置
 
 #+begin_src emacs-lisp
   (use-package elisp-mode
-    :hook ((emacs-lisp-mode . my-enable-lsp-bridge)))
+    :hook ((emacs-lisp-mode . my-enable-elisp-dev))
+    :config
+    (defun my-enable-elisp-dev ()
+      (my-enable-lsp-bridge)
+      (treesit-parser-create 'elisp)))
 #+end_src
 
 ** C++ 开发配置

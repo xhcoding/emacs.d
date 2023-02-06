@@ -213,6 +213,96 @@ Emacs 启动过程的早期加载。
 
 #+end_src
 
+** 空闲时增量加载包
+from: https://github.com/doomemacs/doomemacs/blob/master/lisp/doom-start.el
+
+#+begin_src emacs-lisp
+  (defvar doom-incremental-packages '(t)
+    "A list of packages to load incrementally after startup. Any large packages
+  here may cause noticeable pauses, so it's recommended you break them up into
+  sub-packages. For example, `org' is comprised of many packages, and can be
+  broken up into:
+
+    (doom-load-packages-incrementally
+     '(calendar find-func format-spec org-macs org-compat
+       org-faces org-entities org-list org-pcomplete org-src
+       org-footnote org-macro ob org org-clock org-agenda
+       org-capture))
+
+  This is already done by the lang/org module, however.
+
+  If you want to disable incremental loading altogether, either remove
+  `doom-load-packages-incrementally-h' from `emacs-startup-hook' or set
+  `doom-incremental-first-idle-timer' to nil. Incremental loading does not occur
+  in daemon sessions (they are loaded immediately at startup).")
+
+  (defvar doom-incremental-first-idle-timer (if (daemonp) 0 2.0)
+    "How long (in idle seconds) until incremental loading starts.
+
+  Set this to nil to disable incremental loading.
+  Set this to 0 to load all incrementally deferred packages immediately at
+  `emacs-startup-hook'.")
+
+  (defvar doom-incremental-idle-timer 0.75
+    "How long (in idle seconds) in between incrementally loading packages.")
+
+  (defun doom-load-packages-incrementally (packages &optional now)
+    "Registers PACKAGES to be loaded incrementally.
+
+  If NOW is non-nil, load PACKAGES incrementally, in `doom-incremental-idle-timer'
+  intervals."
+    (let ((gc-cons-threshold most-positive-fixnum))
+      (if (not now)
+          (cl-callf append doom-incremental-packages packages)
+        (while packages
+          (let ((req (pop packages))
+                idle-time)
+            (if (featurep req)
+                (message "start:iloader: Already loaded %s (%d left)" req (length packages))
+              (condition-case-unless-debug e
+                  (and
+                   (or (null (setq idle-time (current-idle-time)))
+                       (< (float-time idle-time) doom-incremental-first-idle-timer)
+                       (not
+                        (while-no-input
+                          (message "start:iloader: Loading %s (%d left)" req (length packages))
+                          ;; If `default-directory' doesn't exist or is
+                          ;; unreadable, Emacs throws file errors.
+                          (let ((default-directory user-emacs-directory)
+                                (inhibit-message t)
+                                (file-name-handler-alist
+                                 (list (rassq 'jka-compr-handler file-name-handler-alist))))
+                            (require req nil t)
+                            t))))
+                   (push req packages))
+                (error
+                 (message "Error: failed to incrementally load %S because: %s" req e)
+                 (setq packages nil)))
+              (if (null packages)
+                  (message "start:iloader: Finished!")
+                (run-at-time (if idle-time
+                                 doom-incremental-idle-timer
+                               doom-incremental-first-idle-timer)
+                             nil #'doom-load-packages-incrementally
+                             packages t)
+                (setq packages nil))))))))
+
+  (defun doom-load-packages-incrementally-h ()
+    "Begin incrementally loading packages in `doom-incremental-packages'.
+
+  If this is a daemon session, load them all immediately instead."
+    (when (numberp doom-incremental-first-idle-timer)
+      (if (zerop doom-incremental-first-idle-timer)
+          (mapc #'require (cdr doom-incremental-packages))
+        (run-with-idle-timer doom-incremental-first-idle-timer
+                             nil #'doom-load-packages-incrementally
+                             (cdr doom-incremental-packages) t))))
+
+  (add-hook 'emacs-startup-hook #'doom-load-packages-incrementally-h 100)
+
+
+#+end_src
+
 ** 启动速度测试
 
 #+begin_src elisp
@@ -1857,6 +1947,15 @@ ref:https://github.com/manateelazycat/toggle-one-window
   (use-package org-contrib
     :straight t
     :after org)
+#+end_src
+
+*** 增量载入 org 包
+
+#+begin_src emacs-lisp
+  (doom-load-packages-incrementally
+   '(calendar find-func format-spec org-macs org-compat org-faces org-entities
+   org-list org-pcomplete org-src org-footnote org-macro ob org org-agenda
+   org-capture))
 #+end_src
 
 ** 知识管理及博客配置

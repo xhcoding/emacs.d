@@ -1078,8 +1078,22 @@ ref:https://github.com/manateelazycat/toggle-one-window
 *** magit
 
 #+begin_src elisp
+  (use-package libgit
+    :straight (libegit2 :type git :host github :repo "magit/libegit2" :files ("libgit.el") :recursive nil)
+    :init
+    (setq libgit--module-file (expand-file-name "libegit2.dll" my-lib-dir)))
+
   (use-package magit
-    :straight t
+    :straight (magit :type git :host github :repo "magit/magit"
+                     :files ("lisp/magit"
+                             "lisp/magit*.el"
+                             "lisp/git-rebase.el"
+                             "docs/magit.texi"
+                             "docs/AUTHORS.md"
+                             "LICENSE"
+                             "Documentation/magit.texi" ; temporarily for stable
+                             "Documentation/AUTHORS.md" ; temporarily for stable
+                             ))
     :bind ("C-x g" . magit-status)
     :config
     (when sys-is-windows
@@ -1095,6 +1109,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
   (use-package ssh-agency
     :straight t
     :after magit)
+
 #+end_src
 
 *** 显示当前行的最后提交信息

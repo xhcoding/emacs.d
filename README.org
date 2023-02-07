@@ -1,3 +1,4 @@
+#+startup: overview
 #+html: <p align="center"><img src="images/emacs-logo.svg" width=150 height=150/></p>
 #+html: <p align="center"><a href="https://www.gnu.org/software/emacs/"><b>GNU Emacs</b></a></p>
 #+html: <p align="center">
@@ -538,7 +539,6 @@ scratch buffer 内容为空
   (column-number-mode +1)
 #+end_src
 
-
 *** 删除文件时放到回收站
 
 #+begin_src elisp
@@ -551,7 +551,7 @@ scratch buffer 内容为空
 (global-hl-line-mode +1)
 #+end_src
 
-** 使用 gcmh 优化垃圾回收
+** gcmh 优化垃圾回收
 
 #+begin_src elisp
   (use-package gcmh
@@ -563,7 +563,7 @@ scratch buffer 内容为空
 	  gcmh-high-cons-threshold 33554432)) ; 32MB
 #+end_src
 
-** 自动保存 buffer
+** auto-save 自动保存
 ref: https://github.com/manateelazycat/auto-save
 
 #+begin_src elisp
@@ -583,12 +583,13 @@ ref: https://github.com/manateelazycat/auto-save
 
 #+end_src
 
-** rime 输入法
+** rime 智能的中文输入法
 
 #+begin_src elisp
   (use-package rime
     :straight t
     :defer t
+    :bind ("C-j" . rime-force-enable)
     :init
     (setq rime--module-path
           (expand-file-name (concat "librime-emacs" module-file-suffix) my-lib-dir))
@@ -609,10 +610,8 @@ ref: https://github.com/manateelazycat/auto-save
 
     :config
     (setq
-     rime-disable-predicates '(meow-normal-mode-p
-                               meow-motion-mode-p
-                               meow-keypad-mode-p))
-    )
+     rime-disable-predicates '(rime-predicate-after-alphabet-char-p
+                               rime-predicate-prog-in-code-p)))
 
 #+end_src
 
@@ -634,7 +633,7 @@ ref: https://github.com/manateelazycat/auto-save
 
 #+end_src
 
-** 图标字体安装
+** all-the-icons 图标字体
 
 #+begin_src elisp
     (use-package all-the-icons
@@ -642,7 +641,7 @@ ref: https://github.com/manateelazycat/auto-save
 
 #+end_src
 
-** modeline 设置
+** doom-modeline modeline 美化
 
 #+begin_src elisp
   (use-package doom-modeline
@@ -679,12 +678,13 @@ ref: https://github.com/manateelazycat/auto-save
 
 #+end_src
 
-** 读取最近文件
+** recentf 读取最近文件
 
 #+begin_src elisp
   (use-package recentf
     :commands (recentf-open-files)
     :hook (after-init . recentf-mode)
+    :bind ("C-x C-r" . recentf-open-files)
     :init (setq recentf-max-saved-items 500
                 recentf-exclude
                 '("\\.?cache" ".cask" "url" "COMMIT_EDITMSG\\'" "bookmarks"
@@ -697,7 +697,7 @@ ref: https://github.com/manateelazycat/auto-save
 
 #+end_src
 
-** 更方便的弹出窗口
+** popper 更方便的弹出窗口
 
 #+begin_src elisp
   (use-package popper
@@ -736,7 +736,7 @@ ref: https://github.com/manateelazycat/auto-save
 
 #+end_src
 
-** 自动同步外部文件改变
+** autorevert 自动同步外部文件改变
 
 #+begin_src elisp
   (use-package autorevert
@@ -745,38 +745,46 @@ ref: https://github.com/manateelazycat/auto-save
 
 #+end_src
 
-** minibuffer 补全及增强
+** ivy minibuffer 补全及增强
 
 #+begin_src elisp
   (use-package orderless
+    :after (consult)
     :straight t
     :custom (completion-styles '(orderless)))
 
   (use-package vertico
+    :after (consult)
     :straight t
     :config
     (vertico-mode +1))
 
   (use-package marginalia
+    :after (consult)
     :straight t
     :config
     (marginalia-mode +1))
 
+  (use-package all-the-icons-completion
+    :straight t
+    :defer t
+    :hook (marginalia-mode . all-the-icons-completion-marginalia-setup))
+
   (use-package consult
     :straight t
-    :commands (consult-customize)
-    :init
-    (consult-customize
-     consult-ripgrep consult-git-grep consult-grep
-     consult-bookmark consult-recent-file
-     consult--source-bookmark consult--source-recent-file
-     :preview-key (kbd "M-."))
-    :bind (("C-x C-b" . consult-bookmark)
+    :defer t
+    :bind (("C-s" . consult-line)
+           ("C-x b" . consult-buffer)
+           ("C-x C-b" . consult-bookmark)
            ("C-x C-i" . consult-imenu))
+    :custom
+    (consult-preview-key nil)
+    (consult-buffer-sources '(consult--source-buffer consult--source-recent-file))
     :config
     (when sys-is-windows
       (add-to-list 'process-coding-system-alist '("es" gbk . gbk))
       (add-to-list 'process-coding-system-alist '("explorer" gbk . gbk))
+      (add-to-list 'process-coding-system-alist '("rg" utf-8 . gbk))
       (setq consult-locate-args (encode-coding-string "es.exe -i -p -r" 'gbk)))
 
     (defun consult--fd-builder (input)
@@ -799,7 +807,7 @@ ref: https://github.com/manateelazycat/auto-save
     )
 #+end_src
 
-** undo 增强
+** vundo undo 增强
 
 #+begin_src emacs-lisp
   (use-package vundo
@@ -847,7 +855,7 @@ ref: https://github.com/manateelazycat/auto-save
     :bind (("M-o" . ace-window)))
 #+end_src
 
-** 快速切换到单窗口
+** toggle-one-window 快速切换到单窗口
 
 ref:https://github.com/manateelazycat/toggle-one-window
 
@@ -870,7 +878,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
   (global-set-key (kbd "M-;") #'my/toggle-one-window)
 #+end_src
 
-** 代码片段
+** yasnippet 快速插入代码片段
 
 #+begin_src elisp
   (use-package yasnippet
@@ -882,7 +890,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+end_src
 
-** project 设置
+** project.el 工程管理
 
 #+begin_src elisp
   (use-package project
@@ -903,17 +911,19 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (cl-defmethod project-files ((project (head vc)) &optional dirs)
       "Override `project-files' to use `fd' in vc projects."
       (mapcan #'my--project-files-in-directory
-              (or dirs (list (project-root project))))))
+              (or dirs (list (project-root project)))))
+  )
 
 
 #+end_src
-** 智能括号插入
+
+** fingertip 智能括号插入
 
 #+begin_src emacs-lisp
   (use-package fingertip
     :straight (fingertip :type git :host github :repo "manateelazycat/fingertip")
     :defer t
-    :hook prog-mode
+    :hook (prog-mode toml-ts-mode)
     :bind (:map fingertip-mode-map
                 ("(" . fingertip-open-round)
                 ("[" . fingertip-open-bracket)
@@ -934,6 +944,19 @@ ref:https://github.com/manateelazycat/toggle-one-window
                 ("M-n" . fingertip-jump-right)
                 ("M-p" . fingertip-jump-left)
                 ("M-RET" . fingertip-jump-out-pair-and-newline)))
+#+end_src
+
+** color-rg 快速搜索重构
+
+#+begin_src elisp
+  (use-package color-rg
+    :straight (color-rg :type git :host github :repo "manateelazycat/color-rg")
+    :defer t
+    :commands (color-rg-search-symbol-in-project color-rg-search-input-in-project)
+    :custom
+    (color-rg-search-no-ignore-file nil)
+    :config
+    (add-to-list 'meow-mode-state-list '(color-rg-mode . motion)))
 #+end_src
 
 ** lsp-bridge 代码补全
@@ -1033,7 +1056,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+end_src
 
-** 高亮外层括号
+** highlight-parentheses 高亮外层括号
 
 #+begin_src elisp
   (use-package highlight-parentheses
@@ -1041,7 +1064,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :hook (prog-mode . highlight-parentheses-mode))
 #+end_src
 
-** 注释代码
+** evil-nerd-commenter 智能注释代码
 
 #+begin_src elisp
   (use-package evil-nerd-commenter
@@ -1055,7 +1078,6 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package magit
-    :disabled
     :straight t
     :bind ("C-x g" . magit-status)
     :config
@@ -1063,7 +1085,6 @@ ref:https://github.com/manateelazycat/toggle-one-window
       (setenv "GIT_ASKPASS" "git-gui--askpass")))
 
   (use-package magit-todos
-    :disabled
     :straight t
     :after magit
     :config
@@ -1071,7 +1092,6 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 
   (use-package ssh-agency
-    :disabled
     :straight t
     :after magit)
 #+end_src
@@ -1207,7 +1227,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
                 ("C-c m" . smerge-mode-hydra/body)))
 #+end_src
 
-** 可视化的正则替换
+** visual-regexp 可视化的正则替换
 
 #+begin_src elisp
   (use-package visual-regexp
@@ -1215,7 +1235,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :defer t)
 #+end_src
 
-** 递增选区
+** expand-region 递增选区
 
 #+begin_src emacs-lisp
   (use-package expand-region
@@ -1408,7 +1428,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (plantuml-default-exec-mode 'jar))
 #+end_src
 
-** dap-mode 配置
+** dap-mode 调式
 
 #+begin_src elisp
   (use-package dap-mode
@@ -1716,78 +1736,14 @@ ref:https://github.com/manateelazycat/toggle-one-window
   (use-package org
     :defer t
     :straight t
-    :bind (:map org-mode-map
-                ("<" . my/insert-org-template))
     :custom
     (org-directory my-org-dir)
     (org-modules '(ol-wl))
-    :config
-    ;; For hydra
-    (defun hot-expand (str &optional mod)
-      "Expand org template.
-  STR is a structure template string recognised by org like <s. MOD is a
-  string with additional parameters to add the begin line of the
-  structure element. HEADER string includes more parameters that are
-  prepended to the element after the #+HEADER: tag."
-      (let (text)
-        (when (region-active-p)
-          (setq text (buffer-substring (region-beginning) (region-end)))
-          (delete-region (region-beginning) (region-end)))
-        (insert str)
-        (if (fboundp 'org-try-structure-completion)
-            (org-try-structure-completion) ; < org 9
-          (progn
-            ;; New template expansion since org 9
-            (require 'org-tempo nil t)
-            (org-tempo-complete-tag)))
-        (when mod (insert mod) (forward-line))
-        (when text (insert text))))
-
-    (defun my/insert-org-template()
-      "Insert org template"
-      (interactive)
-      (if (or (region-active-p) (looking-back "^\s*" 1))
-          (org-hydra/body)
-        (self-insert-command 1)))
-
-    :pretty-hydra
-    ;; See `org-structure-template-alist'
-    ((:title (pretty-hydra-title "Org Template" 'fileicon "org" :face 'all-the-icons-green :height 1.1 :v-adjust 0.0)
-             :color blue :quit-key ("q" "C-g"))
-     ("Basic"
-      (("a" (hot-expand "<a") "ascii")
-       ("c" (hot-expand "<c") "center")
-       ("C" (hot-expand "<C") "comment")
-       ("e" (hot-expand "<e") "example")
-       ("E" (hot-expand "<E") "export")
-       ("h" (hot-expand "<h") "html")
-       ("l" (hot-expand "<l") "latex")
-       ("n" (hot-expand "<n") "note")
-       ("o" (hot-expand "<q") "quote")
-       ("v" (hot-expand "<v") "verse"))
-      "Head"
-      (("i" (hot-expand "<i") "index")
-       ("A" (hot-expand "<A") "ASCII")
-       ("I" (hot-expand "<I") "INCLUDE")
-       ("H" (hot-expand "<H") "HTML")
-       ("L" (hot-expand "<L") "LaTeX"))
-      "Source"
-      (("s" (hot-expand "<s") "src")
-       ("m" (hot-expand "<s" "emacs-lisp") "emacs-lisp")
-       ("y" (hot-expand "<s" "python :results output") "python")
-       ("p" (hot-expand "<s" "perl") "perl")
-       ("w" (hot-expand "<s" "powershell") "powershell")
-       ("r" (hot-expand "<s" "ruby") "ruby")
-       ("S" (hot-expand "<s" "sh") "sh")
-       ("g" (hot-expand "<s" "go :imports '\(\"fmt\"\)") "golang"))
-      "Misc"
-      (("u" (hot-expand "<s" "plantuml :file CHANGE.png") "plantuml")
-       ("Y" (hot-expand "<s" "ipython :session :exports both :results raw drawer\n$0") "ipython")
-       ("P" (progn
-              (insert "#+HEADERS: :results output :exports both :shebang \"#!/usr/bin/env perl\"\n")
-              (hot-expand "<s" "perl")) "Perl tangled")
-       ("<" self-insert-command "ins"))))
-    )
+    (org-structure-template-alist
+     '(("q" . "quote\n")
+       ("s" . "src")
+       ("e" . "src elisp\n"))
+     ))
 #+end_src
 
 *** org babel 设置
@@ -2198,7 +2154,6 @@ ref:https://github.com/manateelazycat/toggle-one-window
                           :build nil)
     :defer t
     :commands (eaf-open eaf-open-browser eaf-open-this-buffer eaf-open-git)
-    :bind ("C-x g" . eaf-open-git)
     :init
     ;; 手动添加到 load-path
     (add-to-list 'load-path (straight--repos-dir "emacs-application-framework"))
@@ -2209,10 +2164,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (require 'eaf-browser)
     (require 'eaf-pdf-viewer)
     (require 'eaf-org-previewer)
-    (require 'eaf-markdown-previewer)
-    (require 'eaf-git)
-    (setq eaf-git-light-highlight-style "emacs")
-    )
+    (require 'eaf-markdown-previewer))
 
 #+end_src
 
@@ -2244,7 +2196,7 @@ Wanderlust + offlineimap3 + mu
           'wl-draft-kill
           'mail-send-hook))
     (setq wl-quicksearch-folder "[]")
-  
+
     (setq wl-message-ignored-field-list
         '(".")
         wl-message-visible-field-list
@@ -2326,7 +2278,7 @@ Wanderlust + offlineimap3 + mu
 #+begin_src emacs-lisp
   (use-package elfeed
     :straight t
-    :defer
+    :defer t
     :bind (:map elfeed-search-mode-map
                 ("RET" . my-eaf-elfeed-open-url))
     :config
@@ -2353,35 +2305,12 @@ Wanderlust + offlineimap3 + mu
     (setq rmh-elfeed-org-files `(,(expand-file-name "elfeed.org" my-org-dir))))
 #+end_src
 
-** 按键提示
+** which-key 按键提示
 
 #+begin_src elisp
   (use-package which-key
     :straight t
     :hook (after-init . which-key-mode))
-#+end_src
-
-
-** 卸载默认的键绑定
-
-ref: https://github.com/manateelazycat/lazy-load
-
-#+begin_src elisp
-  (defun lazy-load-unset-keys (key-list &optional keymap)
-    "This function is to little type when unset key binding.
-  `KEYMAP' is add keymap for some binding, default is `current-global-map'
-  `KEY-LIST' is list contain key."
-    (let (key)
-      (or keymap (setq keymap (current-global-map)))
-      (dolist (key key-list)
-	(cond ((stringp key) (setq key (read-kbd-macro (concat key))))
-	      ((vectorp key) nil)
-	      (t (signal 'wrong-type-argument (list 'array key))))
-	(define-key keymap key nil))))
-
-  (lazy-load-unset-keys
-   '("C-s"
-     ))
 #+end_src
 
 ** meow 模式编辑
@@ -2392,6 +2321,11 @@ ref: https://github.com/manateelazycat/lazy-load
     :demand t
     :hook (after-init . meow-global-mode)
     :config
+
+    (with-eval-after-load 'rime
+      (dolist (p '(meow-normal-mode-p meow-motion-mode-p meow-keypad-mode-p))
+        (add-to-list 'rime-disable-predicates p)))
+
     (setq meow-cheatsheet-layout meow-cheatsheet-layout-qwerty)
 
     (setq meow-char-thing-table
@@ -2417,10 +2351,12 @@ ref: https://github.com/manateelazycat/lazy-load
      '("0" . meow-digit-argument)
      '("?" . meow-cheatsheet)
 
-     '("f" . consult-fd)
+     '("s" . consult-line)
      '("b" . consult-buffer)
      '("r" . consult-ripgrep)
-     '("s" . consult-line)
+
+     '("f" . project-find-file)
+     '("p" . project-switch-project)
 
      '("/" . evilnc-comment-or-uncomment-lines)
 

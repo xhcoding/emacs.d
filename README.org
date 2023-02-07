@@ -749,12 +749,10 @@ ref: https://github.com/manateelazycat/auto-save
 
 #+begin_src elisp
   (use-package orderless
-    :after (consult)
     :straight t
     :custom (completion-styles '(orderless)))
 
   (use-package vertico
-    :after (consult)
     :straight t
     :config
     (vertico-mode +1))

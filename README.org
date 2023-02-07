@@ -1316,7 +1316,13 @@ ref:https://github.com/manateelazycat/toggle-one-window
 #+begin_src emacs-lisp
   (use-package ts-fold
     :straight (ts-fold :type git :host github :repo "AndrewSwerlick/ts-fold" :branch "andrew-sw/treesit-el-support")
-    :bind ("M-z" . ts-fold-toggle))
+    :bind ("M-z" . ts-fold-toggle)
+    :config
+    ;; elisp support
+    (add-to-list 'ts-fold-range-alist '(emacs-lisp-mode 
+                                        (function_definition . ts-fold-range-seq)
+                                        (list . ts-fold-range-seq)
+                                        (special_form . ts-fold-range-seq))))
 #+end_src
 
 ** elisp 配置

@@ -644,6 +644,29 @@ ref: https://github.com/manateelazycat/auto-save
 
 #+end_src
 
+** ligature 连字体
+
+#+begin_src elisp
+  (use-package ligature
+    :straight t
+    :hook prog-mode
+    :config
+    ;; Enable all Cascadia Code ligatures in programming modes
+    (ligature-set-ligatures 'prog-mode '("|||>" "<|||" "<==>" "<!--" "####" "~~>" "***" "||=" "||>"
+                                         ":::" "::=" "=:=" "===" "==>" "=!=" "=>>" "=<<" "=/=" "!=="
+                                         "!!." ">=>" ">>=" ">>>" ">>-" ">->" "->>" "-->" "---" "-<<"
+                                         "<~~" "<~>" "<*>" "<||" "<|>" "<$>" "<==" "<=>" "<=<" "<->"
+                                         "<--" "<-<" "<<=" "<<-" "<<<" "<+>" "</>" "###" "#_(" "..<"
+                                         "..." "+++" "/==" "///" "_|_" "www" "&&" "^=" "~~" "~@" "~="
+                                         "~>" "~-" "**" "*>" "*/" "||" "|}" "|]" "|=" "|>" "|-" "{|"
+                                         "[|" "]#" "::" ":=" ":>" ":<" "$>" "==" "=>" "!=" "!!" ">:"
+                                         ">=" ">>" ">-" "-~" "-|" "->" "--" "-<" "<~" "<*" "<|" "<:"
+                                         "<$" "<=" "<>" "<-" "<<" "<+" "</" "#{" "#[" "#:" "#=" "#!"
+                                         "##" "#(" "#?" "#_" "%%" ".=" ".-" ".." ".?" "+>" "++" "?:"
+                                         "?=" "?." "??" ";;" "/*" "/=" "/>" "//" "__" "~~" "(*" "*)"
+                                         "\\\\" "://")))
+#+end_src
+
 ** doom-modeline modeline 美化
 
 #+begin_src elisp
@@ -1879,7 +1902,8 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (org-structure-template-alist
      '(("q" . "quote\n")
        ("s" . "src")
-       ("e" . "src elisp\n"))
+       ("e" . "src elisp\n")
+       ("h" . "export html"))
      ))
 #+end_src
 

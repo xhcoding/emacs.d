@@ -1293,22 +1293,20 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (setq major-mode-remap-alist
-		'((c-mode          . c-ts-mode)
-		  (c++-mode        . c++-ts-mode)
-		  (cmake-mode      . cmake-ts-mode)
-		  (conf-toml-mode  . toml-ts-mode)
-		  (csharp-mode     . csharp-ts-mode)
-		  (css-mode        . css-ts-mode)
-		  (dockerfile-mode . dockerfile-ts-mode)
-		  (go-mode         . go-ts-mode)
-		  (java-mode       . java-ts-mode)
-		  (json-mode       . json-ts-mode)
-		  (js-json-mode    . json-ts-mode)
-		  (javascript-mode . js-ts-mode)
-		  (python-mode     . python-ts-mode)
-		  (rust-mode       . rust-ts-mode)
-		  (sh-mode         . bash-ts-mode)
-		  (typescript-mode . typescript-ts-mode)))
+        '((c-mode          . c-ts-mode)
+          (c++-mode        . c++-ts-mode)
+          (cmake-mode      . cmake-ts-mode)
+          (conf-toml-mode  . toml-ts-mode)
+          (csharp-mode     . csharp-ts-mode)
+          (css-mode        . css-ts-mode)
+          (dockerfile-mode . dockerfile-ts-mode)
+          (go-mode         . go-ts-mode)
+          (java-mode       . java-ts-mode)
+          (json-mode       . json-ts-mode)
+          (js-json-mode    . json-ts-mode)
+          (javascript-mode . js-ts-mode)
+          (python-mode     . python-ts-mode)
+          (sh-mode         . bash-ts-mode)))
 #+end_src
 
 ** ts-fold 基于 treesit 的代码折叠
@@ -1364,6 +1362,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package rust-ts-mode
+    :mode "\\.rs\\'"
     :hook (rust-ts-mode . my-enable-lsp-bridge))
 #+end_src
 
@@ -1450,7 +1449,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (plantuml-default-exec-mode 'jar))
 #+end_src
 
-** dap-mode 调式
+** dap-mode 调试
 
 #+begin_src elisp
   (use-package dap-mode
@@ -1615,6 +1614,122 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (my--ensure-lsp-workspace-root)
     (call-interactively #'dap-debug)
     )
+#+end_src
+
+** dash-docs 查询 dash 文档
+
+#+begin_src elisp
+  (use-package dash-docs
+    :straight t
+    :commands (my/dash-docs-search)
+    :bind (([remap apropos-documentation] . my/dash-docs-search))
+    :defer t
+    :init
+    ;; 初始化文档
+    (dolist (mode-docsets
+             '((c++-ts-mode-hook . ("C++" "Boost" "Qt_6"))
+               (qml-ts-mode-hook . ("Qt_6"))
+               (cmake-ts-mode-hook . ("CMake"))
+               (rust-ts-mode-hook . ("Rust"))
+               (python-ts-mode-hook . ("Python_3"))
+               ))
+      (let ((hook (car mode-docsets))
+            (docsets (cdr mode-docsets)))
+        (add-hook hook `(lambda ()
+                          (setq-local dash-docs-docsets ',docsets)
+                          ))))
+
+    :custom
+    (dash-docs-enable-debugging nil)
+    (dash-docs-browser-func 'eww-browse-url)
+    :config
+    (when sys-is-windows
+      (setq dash-docs-docsets-path (expand-file-name "persist/zeal/docsets" (getenv "SCOOP"))))
+
+    ;; fix can not open..
+    ;; ref: https://github.com/dash-docs-el/dash-docs/pull/11
+    (defun dash-docs-sql (db-path sql)
+      "Run in the db located at DB-PATH the SQL command and parse the results.
+  If there are errors, print them in `dash-docs-debugging-buffer'"
+      (dash-docs-parse-sql-results
+       (with-output-to-string
+         (let ((error-file (when dash-docs-enable-debugging
+                             (make-temp-file "dash-docs-errors-file"))))
+           (call-process "sqlite3" nil (list standard-output error-file) nil
+                         ;; args for sqlite3:
+                         "-list" "-init" null-device db-path sql)
+
+           ;; display errors, stolen from emacs' `shell-command` function
+           (when (and error-file (file-exists-p error-file))
+             (if (< 0 (nth 7 (file-attributes error-file)))
+                 (with-current-buffer (dash-docs-debugging-buffer)
+                   (let ((pos-from-end (- (point-max) (point))))
+                     (or (bobp)
+                         (insert "\f\n"))
+                     ;; Do no formatting while reading error file,
+                     ;; because that can run a shell command, and we
+                     ;; don't want that to cause an infinite recursion.
+                     (format-insert-file error-file nil)
+                     ;; Put point after the inserted errors.
+                     (goto-char (- (point-max) pos-from-end)))
+                   (display-buffer (current-buffer))))
+             (delete-file error-file))))))
+
+    ;; 搜索文档
+    (defun my/dash-docs-search (&optional pattern)
+      "Search doc."
+      (interactive)
+      (when-let ((search-pattern 
+                  (or pattern 
+                      (let* ((current-symbol 
+                              (if (use-region-p)
+                                  (buffer-substring-no-properties (region-beginning) (region-end))
+                                (thing-at-point 'symbol)))
+                             (input-string
+                              (string-trim
+                               (read-string
+                                (format "Pattern (%s): " current-symbol) nil))))
+                        (when (string-blank-p input-string)
+                          (setq input-string current-symbol))
+                        input-string))))
+        (dash-docs-create-buffer-connections)
+        (dash-docs-create-common-connections)
+        (when-let ((results (dash-docs-search search-pattern))
+                   (select t)
+                   (select-index -1)
+                   (select-result t))
+          (setq select (completing-read "Select: "
+                                        (let ((index 0))
+                                          (mapcar (lambda (result)
+                                                    (setq index (+ index 1))
+                                                    (format "%s. %s" index (car result)))
+                                                  results))
+                                        nil t))
+          (setq select-index (- (string-to-number (car (split-string select "\\. "))) 1))
+          (setq select-result (nth select-index results))
+          (dash-docs-browse-url (cdr select-result)))))
+
+    )
+#+end_src
+
+** shrface 让 eww 的阅读体验更好
+
+#+begin_src elisp
+  (use-package shrface
+    :straight t
+    :defer t
+    :config
+    (shrface-basic)
+    (shrface-trial)
+    (shrface-default-keybindings) ; setup default keybindings
+    (setq shrface-href-versatile t))
+
+  (use-package eww
+  :defer t
+  :init
+  (add-hook 'eww-after-render-hook #'shrface-mode)
+  :config
+  (require 'shrface))
 #+end_src
 
 ** org 配置

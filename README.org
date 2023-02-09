@@ -105,6 +105,7 @@
   - [[#dap-mode-调试][dap-mode 调试]]
   - [[#dash-docs-查询-dash-文档][dash-docs 查询 dash 文档]]
   - [[#shrface-让-eww-的阅读体验更好][shrface 让 eww 的阅读体验更好]]
+  - [[#eww][eww]]
   - [[#olivetti-居中显示内容][olivetti 居中显示内容]]
   - [[#org-配置][org 配置]]
     - [[#org-mode-美化设置][org-mode 美化设置]]
@@ -122,6 +123,7 @@
     - [[#自动在中英文插入空格][自动在中英文插入空格]]
     - [[#org-download-下载图片][org-download 下载图片]]
   - [[#eaf-配置][eaf 配置]]
+  - [[#popweb-配置][popweb 配置]]
   - [[#邮件配置][邮件配置]]
     - [[#wanderlust-邮件前端][Wanderlust 邮件前端]]
     - [[#alert-toast-邮件通知][alert-toast 邮件通知]]
@@ -689,6 +691,12 @@ ref: https://github.com/manateelazycat/auto-save
   (use-package hydra
     :straight t)
 
+  (use-package hydra-posframe
+    :straight (hydra-posframe :type git :host github :repo "Ladicle/hydra-posframe")
+    :hook (after-init . hydra-posframe-mode)
+    :custom
+    (hydra-posframe-poshandler 'posframe-poshandler-window-bottom-right-corner))
+
   (use-package pretty-hydra
     :straight t
     :after hydra
@@ -707,7 +715,23 @@ ref: https://github.com/manateelazycat/auto-save
                 (apply f (list icon-name :face face :height height :v-adjust v-adjust))
                 " "))))
          (propertize title 'face face))))
+    :config
+    (pretty-hydra-define my-base-hydra ()
+      ("" 
+       (("h" backward-char "Backward")
+        ("j" next-line "Next")
+        ("k" previous-line "Previous")
+        ("l" forward-char "Forward")
+        ("<prior>" scroll-down-command "Scroll down")
+        ("<next>" scroll-up-command "Scroll up")
+        ("m" set-mark-command "Set mark"))))
     )
+
+  (use-package major-mode-hydra
+    :demand t
+    :straight t
+    :bind
+    ("M-m" . major-mode-hydra))
 
 #+end_src
 
@@ -1652,7 +1676,8 @@ ref:https://github.com/manateelazycat/toggle-one-window
   (use-package dash-docs
     :straight t
     :commands (my/dash-docs-search)
-    :bind (([remap apropos-documentation] . my/dash-docs-search))
+    :bind (([remap apropos-documentation] . my/dash-docs-search)
+           ("<f1> D" . my/dash-docs-search-docset))
     :defer t
     :init
     ;; 初始化文档
@@ -1739,6 +1764,14 @@ ref:https://github.com/manateelazycat/toggle-one-window
           (setq select-result (nth select-index results))
           (dash-docs-browse-url (cdr select-result)))))
 
+    (defun my/dash-docs-search-docset (&optional docset)
+      "Search doc in `docset'"
+      (interactive (list (dash-docs-read-docset 
+                          "Docset"
+                          (dash-docs-installed-docsets))))
+      (let ((dash-docs-docsets `(,docset)))
+        (call-interactively #'my/dash-docs-search)))
+
     )
 #+end_src
 
@@ -1754,12 +1787,25 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (shrface-default-keybindings) ; setup default keybindings
     (setq shrface-href-versatile t))
 
+#+end_src
+
+** eww
+
+#+begin_src elisp
   (use-package eww
-  :defer t
-  :init
-  (add-hook 'eww-after-render-hook #'shrface-mode)
-  :config
-  (require 'shrface))
+    :defer t
+    :mode-hydra
+    (eww-mode
+     (:title (pretty-hydra-title "eww" 'oction "browser") :color blue :inherit (my-base-hydra/heads))
+     ("A"
+      (("d" eww-download "Download")
+       ("t" popweb-dict-eudic-input "Translate" :exit nil))))
+    :init
+    (add-hook 'eww-after-render-hook #'shrface-mode)
+    :config
+    (require 'shrface)
+    )
+
 #+end_src
 
 ** olivetti 居中显示内容
@@ -1920,6 +1966,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
      '(("q" . "quote\n")
        ("s" . "src")
        ("e" . "src elisp\n")
+       ("c" . "src cpp\n")
        ("h" . "export html"))
      ))
 #+end_src
@@ -2352,6 +2399,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
   (use-package popweb
     :straight (popweb :type git :host github :repo "xhcoding/popweb" :branch "feature/cookie" :build nil)
     :commands (popweb-dict-eudic-input)
+    :bind ("<f1> t" . popweb-dict-eudic-input)
     :init
     (let ((repo (straight--repos-dir "popweb")))
       (add-to-list 'load-path repo)

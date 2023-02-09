@@ -105,6 +105,7 @@
   - [[#dap-mode-调试][dap-mode 调试]]
   - [[#dash-docs-查询-dash-文档][dash-docs 查询 dash 文档]]
   - [[#shrface-让-eww-的阅读体验更好][shrface 让 eww 的阅读体验更好]]
+  - [[#olivetti-居中显示内容][olivetti 居中显示内容]]
   - [[#org-配置][org 配置]]
     - [[#org-mode-美化设置][org-mode 美化设置]]
     - [[#org-基本配置][org 基本配置]]
@@ -626,6 +627,9 @@ ref: https://github.com/manateelazycat/auto-save
 #+begin_src elisp
   (set-face-attribute 'default nil :font "Cascadia Code PL" :height 120)
 
+
+  (set-face-attribute 'variable-pitch nil :font "Alegreya")
+
   (set-fontset-font t 'emoji (font-spec :family "Segoe UI Symbol"))
 
   (set-fontset-font t 'chinese-gbk (font-spec :family "微软雅黑"))
@@ -636,7 +640,6 @@ ref: https://github.com/manateelazycat/auto-save
     :config
     (load-theme 'modus-operandi :no-confirm)
     )
-
 #+end_src
 
 ** all-the-icons 图标字体
@@ -652,6 +655,7 @@ ref: https://github.com/manateelazycat/auto-save
 #+begin_src elisp
   (use-package ligature
     :straight t
+    :defer t
     :hook prog-mode
     :config
     ;; Enable all Cascadia Code ligatures in programming modes
@@ -1758,6 +1762,16 @@ ref:https://github.com/manateelazycat/toggle-one-window
   (require 'shrface))
 #+end_src
 
+** olivetti 居中显示内容
+
+#+begin_src elisp
+  (use-package olivetti
+    :straight t
+    :defer t
+    :hook (org-mode markdown-mode elfeed-show-mode eww-mode)
+    )
+#+end_src
+
 ** org 配置
 *** org-mode 美化设置
 
@@ -2443,8 +2457,6 @@ Wanderlust + offlineimap3 + mu
   (use-package elfeed
     :straight t
     :defer t
-    :bind (:map elfeed-search-mode-map
-                ("RET" . my-eaf-elfeed-open-url))
     :config
     (defun my-eaf-elfeed-open-url ()
       "Display the currently selected item in an eaf buffer."

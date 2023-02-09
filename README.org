@@ -2346,6 +2346,35 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+end_src
 
+** popweb 配置
+
+#+begin_src elisp
+  (use-package popweb
+    :straight (popweb :type git :host github :repo "xhcoding/popweb" :branch "feature/cookie" :build nil)
+    :commands (popweb-dict-eudic-input)
+    :init
+    (let ((repo (straight--repos-dir "popweb")))
+      (add-to-list 'load-path repo)
+      (add-to-list 'load-path (expand-file-name "extension/dict" repo)))
+    :config
+
+    (setq popweb-config-location (expand-file-name "popweb" user-emacs-directory))
+    (require 'popweb-dict)
+
+    ;; 欧陆词典，可以登录后加入生词，方便手机同步
+    (popweb-dict-create "eudic" "https://dict.eudic.net/dicts/en/%s"
+                        (concat
+                         "document.getElementsByTagName('header')[0].style.display = 'none';"
+                         "document.getElementById('head-bar').style.display = 'none';"
+                         "document.getElementById('head-bk').style.display = 'none';"
+                         "document.getElementById('scrollToTop').style.display = 'none';"
+                         "document.getElementById('bodycontent').children[4].style.display = 'none';"
+                         ))
+
+
+    )
+#+end_src
+
 ** 邮件配置
 
 *** Wanderlust 邮件前端

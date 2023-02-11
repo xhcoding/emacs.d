@@ -67,7 +67,7 @@
   - [[#recentf-读取最近文件][recentf 读取最近文件]]
   - [[#popper-更方便的弹出窗口][popper 更方便的弹出窗口]]
   - [[#autorevert-自动同步外部文件改变][autorevert 自动同步外部文件改变]]
-  - [[#ivy-minibuffer-补全及增强][ivy minibuffer 补全及增强]]
+  - [[#minibuffer-补全及增强][minibuffer 补全及增强]]
   - [[#vundo-undo-增强][vundo undo 增强]]
   - [[#avy-快速移动光标到屏幕上任意字符][avy 快速移动光标到屏幕上任意字符]]
   - [[#ace-window-快速切换到其它-window][ace-window 快速切换到其它 window]]
@@ -128,6 +128,7 @@
     - [[#wanderlust-邮件前端][Wanderlust 邮件前端]]
     - [[#alert-toast-邮件通知][alert-toast 邮件通知]]
   - [[#elfeed-rss-订阅][elfeed RSS 订阅]]
+  - [[#leetcodeel-刷题][leetcode.el 刷题]]
   - [[#which-key-按键提示][which-key 按键提示]]
   - [[#meow-模式编辑][meow 模式编辑]]
   - [[#启动-emacs-server][启动 emacs server]]
@@ -693,9 +694,9 @@ ref: https://github.com/manateelazycat/auto-save
 
   (use-package hydra-posframe
     :straight (hydra-posframe :type git :host github :repo "Ladicle/hydra-posframe")
-    :hook (after-init . hydra-posframe-mode)
+    :defer t
     :custom
-    (hydra-posframe-poshandler 'posframe-poshandler-window-bottom-right-corner))
+    (hydra-posframe-poshandler 'posframe-poshandler-window-top-right-corner))
 
   (use-package pretty-hydra
     :straight t
@@ -802,64 +803,75 @@ ref: https://github.com/manateelazycat/auto-save
 
 #+end_src
 
-** ivy minibuffer 补全及增强
+** minibuffer 补全及增强
 
 #+begin_src elisp
+  (use-package pinyinlib
+    :straight t
+    :defer t)
+
   (use-package orderless
-    :straight t
-    :custom (completion-styles '(orderless)))
+      :straight t
+      :custom (completion-styles '(orderless))
+      :config
+      ;; 拼音搜索支持
+      (defun completion--regex-pinyin (str)
+        (require 'pinyinlib)
+        (orderless-regexp (pinyinlib-build-regexp-string str)))
+      (add-to-list 'orderless-matching-styles 'completion--regex-pinyin)
+      )
 
-  (use-package vertico
-    :straight t
-    :config
-    (vertico-mode +1))
+    (use-package vertico
+      :straight t
+      :config
+      (vertico-mode +1))
 
-  (use-package marginalia
-    :after (consult)
-    :straight t
-    :config
-    (marginalia-mode +1))
+    (use-package marginalia
+      :after (consult)
+      :straight t
+      :config
+      (marginalia-mode +1))
 
-  (use-package all-the-icons-completion
-    :straight t
-    :defer t
-    :hook (marginalia-mode . all-the-icons-completion-marginalia-setup))
+    (use-package all-the-icons-completion
+      :straight t
+      :defer t
+      :hook (marginalia-mode . all-the-icons-completion-marginalia-setup))
 
-  (use-package consult
-    :straight t
-    :defer t
-    :bind (("C-s" . consult-line)
-           ("C-x b" . consult-buffer)
-           ("C-x C-b" . consult-bookmark)
-           ("C-x C-i" . consult-imenu))
-    :custom
-    (consult-preview-key nil)
-    (consult-buffer-sources '(consult--source-buffer consult--source-recent-file))
-    :config
-    (when sys-is-windows
-      (add-to-list 'process-coding-system-alist '("es" gbk . gbk))
-      (add-to-list 'process-coding-system-alist '("explorer" gbk . gbk))
-      (add-to-list 'process-coding-system-alist '("rg" utf-8 . gbk))
-      (setq consult-locate-args (encode-coding-string "es.exe -i -p -r" 'gbk)))
+    (use-package consult
+      :straight t
+      :defer t
+      :bind (("C-s" . consult-line)
+             ("C-x b" . consult-buffer)
+             ("C-x C-b" . consult-bookmark)
+             ("C-x C-i" . consult-imenu))
+      :custom
+      (consult-preview-key nil)
+      (consult-buffer-sources '(consult--source-buffer consult--source-recent-file))
+      :config
+      (when sys-is-windows
+        (add-to-list 'process-coding-system-alist '("es" gbk . gbk))
+        (add-to-list 'process-coding-system-alist '("explorer" gbk . gbk))
+        (add-to-list 'process-coding-system-alist '("rg" utf-8 . gbk))
+        (setq consult-locate-args (encode-coding-string "es.exe -i -p -r" 'gbk)))
 
-    (defun consult--fd-builder (input)
-      (pcase-let* ((`(,arg . ,opts) (consult--command-split input))
-                   (`(,re . ,hl) (funcall consult--regexp-compiler
-                                          arg 'extended t)))
-        (when re
-          (list :command (append
-                          (list "fd"
-                                "--color=never" "--full-path"
-                                (consult--join-regexps re 'extended))
-                          opts)
-                :highlight hl))))
+      (defun consult--fd-builder (input)
+        (pcase-let* ((`(,arg . ,opts) (consult--command-split input))
+                     (`(,re . ,hl) (funcall consult--regexp-compiler
+                                            arg 'extended t)))
+          (when re
+            (list :command (append
+                            (list "fd"
+                                  "--color=never" "--full-path"
+                                  (consult--join-regexps re 'extended))
+                            opts)
+                  :highlight hl))))
 
-    (defun consult-fd (&optional dir initial)
-      (interactive "P")
-      (let* ((prompt-dir (consult--directory-prompt "Fd" dir))
-             (default-directory (cdr prompt-dir)))
-        (find-file (consult--find (car prompt-dir) #'consult--fd-builder initial))))
-    )
+      (defun consult-fd (&optional dir initial)
+        (interactive "P")
+        (let* ((prompt-dir (consult--directory-prompt "Fd" dir))
+               (default-directory (cdr prompt-dir)))
+          (find-file (consult--find (car prompt-dir) #'consult--fd-builder initial))))
+      )
 #+end_src
 
 ** vundo undo 增强
@@ -873,10 +885,6 @@ ref: https://github.com/manateelazycat/auto-save
 ** avy 快速移动光标到屏幕上任意字符
 
 #+begin_src elisp
-  (use-package pinyinlib
-    :straight t
-    :defer t)
-
   (use-package avy
     :straight t
     :bind (("M-'" . my/avy-goto-char-timer))
@@ -1769,8 +1777,15 @@ ref:https://github.com/manateelazycat/toggle-one-window
       (interactive (list (dash-docs-read-docset 
                           "Docset"
                           (dash-docs-installed-docsets))))
-      (let ((dash-docs-docsets `(,docset)))
-        (call-interactively #'my/dash-docs-search)))
+      (unless (boundp 'dash-docs-docsets)
+        (setq-local dash-docs-docsets `(,docset)))
+
+      (let ((old-dash-docs-docsets dash-docs-docsets))
+        (unwind-protect
+            (progn
+            (setq-local dash-docs-docsets `(,docset))
+            (call-interactively #'my/dash-docs-search))
+          (setq-local dash-docs-docsets old-dash-docs-docsets))))
 
     )
 #+end_src
@@ -1796,7 +1811,9 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :defer t
     :mode-hydra
     (eww-mode
-     (:title (pretty-hydra-title "eww" 'oction "browser") :color blue :inherit (my-base-hydra/heads))
+     (:title (pretty-hydra-title "eww" 'oction "browser") :color blue :inherit (my-base-hydra/heads)
+             :pre (unless hydra-posframe-mode
+                    (hydra-posframe-mode)))
      ("A"
       (("d" eww-download "Download")
        ("t" popweb-dict-eudic-input "Translate" :exit nil))))
@@ -1804,6 +1821,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (add-hook 'eww-after-render-hook #'shrface-mode)
     :config
     (require 'shrface)
+    (require 'popweb)
     )
 
 #+end_src
@@ -2556,6 +2574,31 @@ Wanderlust + offlineimap3 + mu
     :config
     (elfeed-org)
     (setq rmh-elfeed-org-files `(,(expand-file-name "elfeed.org" my-org-dir))))
+#+end_src
+
+** leetcode.el 刷题
+
+#+begin_src elisp
+  (use-package leetcode
+    :straight (leetcode :type git :host github :repo "xhcoding/leetcode.el")
+    :defer t
+    :custom
+    (leetcode-prefer-language "cpp")
+    (leetcode-save-solutions t)
+    (leetcode-directory (expand-file-name "LeetCode" my-code-dir))
+    :config
+    ;; 在 leetcode 里关闭自动补全
+    (defun my-*after-leetcode--start-coding (problem problem-info)
+      (let-alist problem
+        (let* ((title (leetcode-problem-title problem-info))
+               (code-buf-name (leetcode--get-code-buffer-name title)))
+          (with-current-buffer (leetcode--get-code-buffer code-buf-name)
+            (when lsp-bridge-mode
+              (lsp-bridge-mode -1))))))
+
+    (advice-add 'leetcode--start-coding :after 'my-*after-leetcode--start-coding)
+
+    )
 #+end_src
 
 ** which-key 按键提示

@@ -1784,7 +1784,8 @@ ref:https://github.com/manateelazycat/toggle-one-window
         (unwind-protect
             (progn
             (setq-local dash-docs-docsets `(,docset))
-            (call-interactively #'my/dash-docs-search))
+            (call-interactively #'my/dash-docs-search)
+            (setq-local dash-docs-docsets old-dash-docs-docsets))
           (setq-local dash-docs-docsets old-dash-docs-docsets))))
 
     )
@@ -2415,16 +2416,14 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package popweb
-    :straight (popweb :type git :host github :repo "xhcoding/popweb" :branch "feature/cookie" :build nil)
-    :commands (popweb-dict-eudic-input)
+    :straight (popweb :type git :host github :repo "xhcoding/popweb" :branch "cookies" :build nil)
+    :commands (popweb-dict-eudic-input popweb-import-browser-cookies)
     :bind ("<f1> t" . popweb-dict-eudic-input)
     :init
     (let ((repo (straight--repos-dir "popweb")))
       (add-to-list 'load-path repo)
       (add-to-list 'load-path (expand-file-name "extension/dict" repo)))
     :config
-
-    (setq popweb-config-location (expand-file-name "popweb" user-emacs-directory))
     (require 'popweb-dict)
 
     ;; 欧陆词典，可以登录后加入生词，方便手机同步
@@ -2437,9 +2436,9 @@ ref:https://github.com/manateelazycat/toggle-one-window
                          "document.getElementById('bodycontent').children[4].style.display = 'none';"
                          ))
 
-
     )
 #+end_src
+
 
 ** 邮件配置
 

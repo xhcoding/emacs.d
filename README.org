@@ -56,13 +56,15 @@
     - [[#一行不超过-120-字符][一行不超过 120 字符]]
     - [[#删除文件时放到回收站][删除文件时放到回收站]]
     - [[#高亮当前行][高亮当前行]]
+    - [[#利用左边-win-键][利用左边 Win 键]]
   - [[#gcmh-优化垃圾回收][gcmh 优化垃圾回收]]
   - [[#auto-save-自动保存][auto-save 自动保存]]
   - [[#rime-智能的中文输入法][rime 智能的中文输入法]]
   - [[#字体和主题][字体和主题]]
   - [[#all-the-icons-图标字体][all-the-icons 图标字体]]
   - [[#ligature-连字体][ligature 连字体]]
-  - [[#doom-modeline-modeline-美化][doom-modeline modeline 美化]]
+  - [[#awesome-tray-底部信息显示][awesome-tray 底部信息显示]]
+  - [[#sort-tab-快速切换到其它-buffer][sort-tab 快速切换到其它 buffer]]
   - [[#hydra-方便的快捷键设置][hydra 方便的快捷键设置]]
   - [[#recentf-读取最近文件][recentf 读取最近文件]]
   - [[#popper-更方便的弹出窗口][popper 更方便的弹出窗口]]
@@ -561,6 +563,17 @@ scratch buffer 内容为空
 (global-hl-line-mode +1)
 #+end_src
 
+*** 利用左边 Win 键
+
+#+begin_src elisp
+  (setq w32-lwindow-modifier 'super
+        w32-apps-modifier 'hyper)
+
+  (w32-register-hot-key (kbd "s-["))
+  (w32-register-hot-key (kbd "s-]"))
+
+#+end_src
+
 ** gcmh 优化垃圾回收
 
 #+begin_src elisp
@@ -677,13 +690,46 @@ ref: https://github.com/manateelazycat/auto-save
                                          "\\\\" "://")))
 #+end_src
 
-** doom-modeline modeline 美化
+** awesome-tray 底部信息显示
 
 #+begin_src elisp
-  (use-package doom-modeline
-    :straight t
-    :config (doom-modeline-mode +1))
+  (use-package awesome-tray
+    :demand t
+    :straight (awesome-tray :type git :host github :repo "manateelazycat/awesome-tray")
+    :custom
+    (awesome-tray-mode-line-active-color "#94d4ff")
+    (awesome-tray-mode-line-inactive-color "#9f9f9f")
+    (awesome-tray-date-format "%H:%M")
+    (awesome-tray-git-format  "%s")
+    (awesome-tray-active-modules '("location" "buffer-name" "git" "input-method" "date"))
+    :config
+    (awesome-tray-mode +1)
+    )
 
+#+end_src
+
+** sort-tab 快速切换到其它 buffer
+
+#+begin_src elisp
+  (use-package sort-tab
+    :demand t
+    :straight (sort-tab :type git :host github :repo "manateelazycat/sort-tab")
+    :bind (("M-1" . sort-tab-select-visible-tab)
+           ("M-2" . sort-tab-select-visible-tab)
+           ("M-3" . sort-tab-select-visible-tab)
+           ("M-4" . sort-tab-select-visible-tab)
+           ("M-5" . sort-tab-select-visible-tab)
+           ("M-6" . sort-tab-select-visible-tab)
+           ("M-7" . sort-tab-select-visible-tab)
+           ("M-8" . sort-tab-select-visible-tab)
+           ("M-9" . sort-tab-select-visible-tab)
+           ("s-[" . sort-tab-select-prev-tab)
+           ("s-]" . sort-tab-select-next-tab))
+    :config
+    (sort-tab-mode +1)
+    (with-eval-after-load 'ace-window
+      (add-to-list 'aw-ignored-buffers "*sort-tab*"))
+    )
 #+end_src
 
 ** hydra 方便的快捷键设置

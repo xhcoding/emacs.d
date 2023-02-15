@@ -96,6 +96,7 @@
     - [[#c-ts-mode-设置][c-ts-mode 设置]]
   - [[#rust-开发配置][Rust 开发配置]]
   - [[#python-开发配置][python 开发配置]]
+  - [[#java-开发配置][java 开发配置]]
   - [[#web-开发][web 开发]]
     - [[#javascript][Javascript]]
     - [[#typescript][Typescript]]
@@ -725,6 +726,8 @@ ref: https://github.com/manateelazycat/auto-save
            ("M-9" . sort-tab-select-visible-tab)
            ("s-[" . sort-tab-select-prev-tab)
            ("s-]" . sort-tab-select-next-tab))
+    :custom
+    (sort-tab-show-index-number t)
     :config
     (sort-tab-mode +1)
     (with-eval-after-load 'ace-window
@@ -1127,6 +1130,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (push '(css-ts-mode . "vscode-css-language-server") lsp-bridge-single-lang-server-mode-list)
     (push '(scss-mode . "vscode-css-language-server") lsp-bridge-single-lang-server-mode-list)
     (push '(cmake-ts-mode . "cmake-language-server") lsp-bridge-single-lang-server-mode-list)
+    (push '(java-ts-mode . "jdtls") lsp-bridge-single-lang-server-mode-list)
 
     (push '(qml-ts-mode . "qmlls_javascript") lsp-bridge-multi-lang-server-mode-list)
 
@@ -1479,6 +1483,77 @@ ref:https://github.com/manateelazycat/toggle-one-window
 #+begin_src emacs-lisp
   (use-package python
     :hook (python-ts-mode . my-enable-lsp-bridge))
+#+end_src
+
+** java 开发配置
+
+#+begin_src elisp
+  (use-package java-ts-mode
+    :hook (java-ts-mode . my-enable-java-dev)
+    :config
+    (defun my-enable-java-dev ()
+      (require 'lsp-bridge-jdtls)
+      (setq-local lsp-bridge-get-single-lang-server-by-project 'lsp-bridge-get-jdtls-server-by-project)
+      (my-enable-lsp-bridge))
+
+    ;； jdtls 目录
+    (defconst my--java-jdtls-root-dir (expand-file-name "apps/jdtls/current" (getenv "SCOOP")))
+    (defconst my--java-jdtls-conf-dir (expand-file-name "config_win" my--java-jdtls-root-dir))
+    (defconst my--java-jdtls-equinox-path   (car (directory-files (expand-file-name "plugins" my--java-jdtls-root-dir) t "org.eclipse.equinox.launcher_.*\\.jar")))
+    (defconst my--java-jdtls-command 
+      `("java"
+        "-Declipse.application=org.eclipse.jdt.ls.core.id1"
+        "-Dosgi.bundles.defaultStartLevel=4"
+        "-Declipse.product=org.eclipse.jdt.ls.core.product"
+        "-Dosgi.checkConfiguration=true"
+        ,(format "-Dosgi.sharedConfiguration.area=%s" my--java-jdtls-conf-dir)
+        "-Dosgi.sharedConfiguration.area.readOnly=true"
+        "-Dosgi.configuration.cascaded=true"
+        "-Xms1G"
+        "--add-modules=ALL-SYSTEM"
+        "--add-opens"
+        "java.base/java.util=ALL-UNNAMED"
+        "--add-opens"
+        "java.base/java.lang=ALL-UNNAMED"
+        "-jar"
+        ,my--java-jdtls-equinox-path
+        ))
+
+    (defun my--lsp-bridge-jdtls-init-config (project-path filepath)
+      "Initialize JDTLS configuration"
+      (message "init config: %s " project-path)
+      (let* ((json-object-type 'plist)
+             (config (json-read-file lsp-bridge-jdtls-default-file))
+             (config-file (lsp-bridge-jdtls-config-file project-path filepath))
+             (data-directory (lsp-bridge-jdtls-project-data-dir project-path filepath)))
+
+        ;; An additional JVM option (can be used multiple times. Note, use with equal sign. For example: --jvm-arg=-Dlog.level=ALL
+
+        (plist-put config :command my--java-jdtls-command)
+
+        (when (listp lsp-bridge-jdtls-jvm-args)
+          (let ((jvm-args (mapcar (lambda (arg) (concat "--jvm-arg=" arg))
+                                  lsp-bridge-jdtls-jvm-args)))
+
+            (plist-put config :command (vconcat (plist-get config :command)
+                                                jvm-args))))
+
+        ;; Add the `-data` parameter to the startup parameter
+        (plist-put config :command (vconcat (plist-get config :command) `("-data" ,data-directory)))
+
+        (make-directory (file-name-directory config-file) t)
+
+        (with-temp-file config-file
+          (insert (json-encode config)))))
+
+    (advice-add 'lsp-bridge-jdtls-init-config :override 'my--lsp-bridge-jdtls-init-config)
+
+    )
+
+
+  (use-package kotlin-ts-mode
+    :straight (kotlin-ts-mode :type git :host gitlab :repo "bricka/emacs-kotlin-ts-mode")
+    :mode "\\.kts\\'")
 #+end_src
 
 ** web 开发
@@ -2462,7 +2537,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package popweb
-    :straight (popweb :type git :host github :repo "xhcoding/popweb" :branch "cookies" :build nil)
+    :straight (popweb :type git :host github :repo "manateelazycat/popweb" :build nil)
     :commands (popweb-dict-eudic-input popweb-import-browser-cookies)
     :bind ("<f1> t" . popweb-dict-eudic-input)
     :init
@@ -2481,7 +2556,6 @@ ref:https://github.com/manateelazycat/toggle-one-window
                          "document.getElementById('scrollToTop').style.display = 'none';"
                          "document.getElementById('bodycontent').children[4].style.display = 'none';"
                          ))
-
     )
 #+end_src
 

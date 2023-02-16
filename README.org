@@ -1090,7 +1090,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
                 ("C-r" . consult-history)))
 #+end_src
 
-*** eshell 提示符美化
+*** eshell-git-prompt 提示符美化
 
 #+begin_src elisp
   (use-package eshell-git-prompt
@@ -1098,6 +1098,79 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :after esh-mode
     :config
     (eshell-git-prompt-use-theme 'powerline))
+#+end_src
+
+*** eshell-z 智能目录跳转
+
+#+begin_src elisp
+  (use-package eshell
+    :defer t
+    :config
+    (require 'em-dirs)
+    (defvar my-eshell-z--table nil)
+
+    (defvar my-eshell-z-file-name (expand-file-name "z" eshell-directory-name))
+
+    (defun my-eshell-z--load ()
+      (if (not (file-exists-p my-eshell-z-file-name))
+          (setq my-eshell-z--table (make-hash-table :test 'equal))
+        (setq my-eshell-z--table
+              (with-temp-buffer
+                (insert-file-contents my-eshell-z-file-name)
+                (goto-char (point-min))
+                (read (current-buffer))))))
+
+    (defun my-eshell-z--save ()
+      (let ((dir (file-name-directory my-eshell-z-file-name)))
+        (unless (file-exists-p dir)
+          (make-directory dir t))
+        (when (file-exists-p my-eshell-z-file-name)
+          (copy-file my-eshell-z-file-name (concat my-eshell-z-file-name ".backup") t))
+        (with-temp-file my-eshell-z-file-name
+          (prin1 my-eshell-z--table (current-buffer)))))
+
+    (defun my-eshell-z--update ()
+      (let ((cur-dir default-directory))
+        (if-let* ((item (gethash cur-dir my-eshell-z--table))
+                  (score (car item)))
+            (puthash cur-dir (list (+ score 1) (time-to-seconds)) my-eshell-z--table)
+          (puthash cur-dir (list 1 (time-to-seconds)) my-eshell-z--table))))
+
+    (defun eshell/z (&rest args)
+      (let* ((first (car args))
+             (result first))
+        (if (not first)
+            (setq result "~")
+          (cond
+           ((string-match-p "^[.]+$" first)
+            (let ((target ""))
+              (cl-loop repeat (length path) do
+                       (setq target (concat "../")))))
+           ((string= "-" first)
+            (setq result first))
+           (t (let ((regex "")
+                    target-score
+                    target-dir)
+                (dolist (arg args)
+                  (setq regex (concat regex arg ".*")))
+                (maphash #'(lambda (key value)
+                             (when (string-match-p regex key)
+                               (when (and target-score (> (car value) target-score))
+                                   (setq target-dir key
+                                         target-score (car value)))
+                               (unless target-score
+                                 (setq target-dir key
+                                       target-score (car value)))))
+                         my-eshell-z--table)
+                (if target-dir
+                    (setq result target-dir)
+                  (setq result args))
+                ))))
+        ;; (message "result: %s" result)
+        (eshell/cd result)))
+    (add-hook 'eshell-mode-hook #'my-eshell-z--load)
+    (add-hook 'eshell-directory-change-hook #'my-eshell-z--update)
+    (add-hook 'kill-emacs-hook #'my-eshell-z--save))
 #+end_src
 
 ** fingertip 智能括号插入

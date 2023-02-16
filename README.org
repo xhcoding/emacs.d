@@ -76,6 +76,12 @@
   - [[#toggle-one-window-快速切换到单窗口][toggle-one-window 快速切换到单窗口]]
   - [[#yasnippet-快速插入代码片段][yasnippet 快速插入代码片段]]
   - [[#projectel-工程管理][project.el 工程管理]]
+  - [[#eshell-增强][eshell 增强]]
+    - [[#eshell-基本配置][eshell 基本配置]]
+    - [[#eshell-历史记录设置][eshell 历史记录设置]]
+    - [[#esh-mode-设置][esh-mode 设置]]
+    - [[#eshell-git-prompt-提示符美化][eshell-git-prompt 提示符美化]]
+    - [[#eshell-z-智能目录跳转][eshell-z 智能目录跳转]]
   - [[#fingertip-智能括号插入][fingertip 智能括号插入]]
   - [[#color-rg-快速搜索重构][color-rg 快速搜索重构]]
   - [[#lsp-bridge-代码补全][lsp-bridge 代码补全]]
@@ -103,12 +109,12 @@
     - [[#html][HTML]]
     - [[#css][css]]
   - [[#json-mode][json-mode]]
-  - [[#qml][qml]]
+  - [[#qml-开发][qml 开发]]
   - [[#plantuml-支持][plantuml 支持]]
   - [[#dap-mode-调试][dap-mode 调试]]
   - [[#dash-docs-查询-dash-文档][dash-docs 查询 dash 文档]]
   - [[#shrface-让-eww-的阅读体验更好][shrface 让 eww 的阅读体验更好]]
-  - [[#eww][eww]]
+  - [[#eww-配置][eww 配置]]
   - [[#olivetti-居中显示内容][olivetti 居中显示内容]]
   - [[#org-配置][org 配置]]
     - [[#org-mode-美化设置][org-mode 美化设置]]
@@ -1112,29 +1118,33 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (defvar my-eshell-z-file-name (expand-file-name "z" eshell-directory-name))
 
     (defun my-eshell-z--load ()
-      (if (not (file-exists-p my-eshell-z-file-name))
-          (setq my-eshell-z--table (make-hash-table :test 'equal))
-        (setq my-eshell-z--table
-              (with-temp-buffer
-                (insert-file-contents my-eshell-z-file-name)
-                (goto-char (point-min))
-                (read (current-buffer))))))
+      (setq my-eshell-z--table (make-hash-table :test 'equal))
+      (when (file-exists-p my-eshell-z-file-name)
+        (dolist (element (with-temp-buffer
+                          (insert-file-contents my-eshell-z-file-name)
+                          (goto-char (point-min))
+                          (read (current-buffer))))
+          (when (file-directory-p (car element))
+            (puthash (car element) (cadr element) my-eshell-z--table)))))
 
     (defun my-eshell-z--save ()
       (let ((dir (file-name-directory my-eshell-z-file-name)))
         (unless (file-exists-p dir)
           (make-directory dir t))
-        (when (file-exists-p my-eshell-z-file-name)
-          (copy-file my-eshell-z-file-name (concat my-eshell-z-file-name ".backup") t))
         (with-temp-file my-eshell-z-file-name
-          (prin1 my-eshell-z--table (current-buffer)))))
+          (let ((result (list)))
+            (maphash #'(lambda (key value) 
+                         (when (> value 0)
+                           (add-to-list 'result (list key (- value 0.1))))
+                         )
+                     my-eshell-z--table)
+          (prin1 result (current-buffer))))))
 
     (defun my-eshell-z--update ()
       (let ((cur-dir default-directory))
-        (if-let* ((item (gethash cur-dir my-eshell-z--table))
-                  (score (car item)))
-            (puthash cur-dir (list (+ score 1) (time-to-seconds)) my-eshell-z--table)
-          (puthash cur-dir (list 1 (time-to-seconds)) my-eshell-z--table))))
+        (if-let ((score (gethash cur-dir my-eshell-z--table)))
+            (puthash cur-dir (+ score 1) my-eshell-z--table)
+          (puthash cur-dir 1 my-eshell-z--table))))
 
     (defun eshell/z (&rest args)
       (let* ((first (car args))
@@ -1155,12 +1165,12 @@ ref:https://github.com/manateelazycat/toggle-one-window
                   (setq regex (concat regex arg ".*")))
                 (maphash #'(lambda (key value)
                              (when (string-match-p regex key)
-                               (when (and target-score (> (car value) target-score))
+                               (when (and target-score (> value target-score))
                                    (setq target-dir key
-                                         target-score (car value)))
+                                         target-score value))
                                (unless target-score
                                  (setq target-dir key
-                                       target-score (car value)))))
+                                       target-score value))))
                          my-eshell-z--table)
                 (if target-dir
                     (setq result target-dir)
@@ -2723,7 +2733,6 @@ ref:https://github.com/manateelazycat/toggle-one-window
                          ))
     )
 #+end_src
-
 
 ** 邮件配置
 

@@ -1464,6 +1464,8 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (c-ts-mode-indent-offset  4)
     :config
     (defun my-enable-cc-dev()
+      ;; treesit-forward-sexp 工作异常
+      (setq forward-sexp-function nil)
       (setq-local lsp-bridge-completion-hide-characters '(";" "(" ")" "[" "]" "{" "}" "," "\""))
       (my-enable-lsp-bridge)
       )
@@ -1492,6 +1494,9 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :hook (java-ts-mode . my-enable-java-dev)
     :config
     (defun my-enable-java-dev ()
+      ;; treesit-forward-sexp 工作异常
+      (setq forward-sexp-function nil)
+
       (require 'lsp-bridge-jdtls)
       (setq-local lsp-bridge-get-single-lang-server-by-project 'lsp-bridge-get-jdtls-server-by-project)
       (my-enable-lsp-bridge))
@@ -2120,6 +2125,22 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :custom
     (org-confirm-babel-evaluate nil)
     (org-export-use-babel nil)
+    (org-src-lang-modes '(("C" . c-ts)
+                         ("C++" . c++-ts)
+                         ("asymptote" . asy)
+                         ("bash" . sh)
+                         ("beamer" . latex)
+                         ("calc" . fundamental)
+                         ("cpp" . c++-ts)
+                         ("ditaa" . artist)
+                         ("desktop" . conf-desktop)
+                         ("dot" . fundamental)
+                         ("elisp" . emacs-lisp)
+                         ("ocaml" . tuareg)
+                         ("screen" . shell-script)
+                         ("shell" . sh)
+                         ("sqlite" . sql)
+                         ("toml" . conf-toml)))
     :config
     (org-babel-do-load-languages 'org-babel-load-languages
                                  '((emacs-lisp . t)

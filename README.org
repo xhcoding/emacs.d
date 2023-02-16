@@ -812,31 +812,32 @@ ref: https://github.com/manateelazycat/auto-save
     :hook (emacs-startup . popper-mode)
     :init
     (setq popper-reference-buffers
-	  '(
-	    help-mode
-	    rustic-cargo-run-mode
-	    lsp-bridge-ref-mode
-	    ))
+          '(
+            help-mode
+            rustic-cargo-run-mode
+            lsp-bridge-ref-mode
+            "^\\*eshell.*\\*$" eshell-mode
+            ))
     :config
 
     (with-no-warnings
       (defun my-popper-fit-window-height (win)
-	"Determine the height of popup window WIN by fitting it to the buffer's content."
-	(fit-window-to-buffer
-	 win
-	 (floor (frame-height) 3)
-	 (floor (frame-height) 3)))
+        "Determine the height of popup window WIN by fitting it to the buffer's content."
+        (fit-window-to-buffer
+         win
+         (floor (frame-height) 3)
+         (floor (frame-height) 3)))
       (setq popper-window-height #'my-popper-fit-window-height)
 
       (defun popper-close-window-hack (&rest _)
-	"Close popper window via `C-g'."
-	;; `C-g' can deactivate region
-	(when (and (called-interactively-p 'interactive)
-		   (not (region-active-p))
-		   popper-open-popup-alist)
-	  (let ((window (caar popper-open-popup-alist)))
-	    (when (window-live-p window)
-	      (delete-window window)))))
+        "Close popper window via `C-g'."
+        ;; `C-g' can deactivate region
+        (when (and (called-interactively-p 'interactive)
+                   (not (region-active-p))
+                   popper-open-popup-alist)
+          (let ((window (caar popper-open-popup-alist)))
+            (when (window-live-p window)
+              (delete-window window)))))
       (advice-add #'keyboard-quit :before #'popper-close-window-hack))
     )
 
@@ -1029,6 +1030,76 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+end_src
 
+** eshell 增强
+
+*** eshell 基本配置
+#+begin_src elisp
+  (use-package eshell
+    :bind (("<f5>" . my/eshell))
+    :custom
+    (eshell-kill-processes-on-exit t)
+    :config
+
+    ;; 默认为插入模式
+    (add-to-list 'meow-mode-state-list '(eshell-mode . insert))
+
+
+    ;; 配合 popper 实现 toggle 效果
+    (defun my/eshell ()
+      (interactive)
+      (if-let* ((window (caar popper-open-popup-alist))
+               (buffer (cdar popper-open-popup-alist))
+               (eshell-opened (string= eshell-buffer-name (buffer-name buffer))))
+          (when (window-live-p window)
+            (delete-window window))
+        (eshell)))
+
+    ;; cat 高亮
+    (defun my-eshell-cat-with-syntax-highlight (file)
+      "Like cat but with syntax highlight."
+      (with-temp-buffer
+        (insert-file-contents file)
+        (let ((buffer-file-name file))
+          (delay-mode-hooks
+            (set-auto-mode)
+            (font-lock-ensure)))
+        (buffer-string)))
+
+    (advice-add 'eshell/cat :override #'my-eshell-cat-with-syntax-highlight)
+
+
+    )
+#+end_src
+
+*** eshell 历史记录设置
+
+#+begin_src elisp
+  (use-package em-hist
+    :defer t
+    :custom
+    (eshell-history-size 10240)
+    (eshell-hist-ignoredups t)
+    (eshell-save-history-on-exit t))
+#+end_src
+
+*** esh-mode 设置
+
+#+begin_src elisp
+  (use-package esh-mode
+    :bind (:map eshell-mode-map
+                ("C-r" . consult-history)))
+#+end_src
+
+*** eshell 提示符美化
+
+#+begin_src elisp
+  (use-package eshell-git-prompt
+    :straight t
+    :after esh-mode
+    :config
+    (eshell-git-prompt-use-theme 'powerline))
+#+end_src
+
 ** fingertip 智能括号插入
 
 #+begin_src emacs-lisp
@@ -1097,30 +1168,30 @@ ref:https://github.com/manateelazycat/toggle-one-window
       "Support LANG in org source code block."
       (cl-check-type lang string)
       (let* ((edit-pre (intern (format "org-babel-edit-prep:%s" lang)))
-         (intern-pre (intern (format "lsp--%s" (symbol-name edit-pre)))))
-    `(progn
-       (defun ,intern-pre (info)
-         (let ((file-name (->> info caddr (alist-get :file))))
-           (unless file-name
-         (setq file-name (expand-file-name "OrgBabel/org-src-babel" my-code-dir))
-         (write-region (point-min) (point-max) file-name))
-           (setq buffer-file-name file-name)
-           (my-enable-lsp-bridge)))
-       (put ',intern-pre 'function-documentation
-        (format "Enable lsp-bridge-mode in the buffer of org source block (%s)."
-            (upcase ,lang)))
-       (if (fboundp ',edit-pre)
-           (advice-add ',edit-pre :after ',intern-pre)
-         (progn
-           (defun ,edit-pre (info)
-         (,intern-pre info))
-           (put ',edit-pre 'function-documentation
-            (format "Prepare local buffer environment for org source block (%s)."
-                (upcase ,lang))))))))
+             (intern-pre (intern (format "lsp--%s" (symbol-name edit-pre)))))
+        `(progn
+           (defun ,intern-pre (info)
+             (let ((file-name (->> info caddr (alist-get :file))))
+               (unless file-name
+                 (setq file-name (expand-file-name "OrgBabel/org-src-babel" my-code-dir))
+                 (write-region (point-min) (point-max) file-name))
+               (setq buffer-file-name file-name)
+               (my-enable-lsp-bridge)))
+           (put ',intern-pre 'function-documentation
+                (format "Enable lsp-bridge-mode in the buffer of org source block (%s)."
+                        (upcase ,lang)))
+           (if (fboundp ',edit-pre)
+               (advice-add ',edit-pre :after ',intern-pre)
+             (progn
+               (defun ,edit-pre (info)
+                 (,intern-pre info))
+               (put ',edit-pre 'function-documentation
+                    (format "Prepare local buffer environment for org source block (%s)."
+                            (upcase ,lang))))))))
 
     (with-eval-after-load 'org
       (dolist (lang '("c" "cpp" "python" "rust"))
-    (eval `(my-lsp-org-babel-enable ,lang))))
+        (eval `(my-lsp-org-babel-enable ,lang))))
 
 
     :config
@@ -1616,7 +1687,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (json-ts-mode-indent-offset 2))
 #+end_src
 
-** qml
+** qml 开发
 
 #+begin_src elisp
   (use-package qml-ts-mode
@@ -1931,7 +2002,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+end_src
 
-** eww
+** eww 配置
 
 #+begin_src elisp
   (use-package eww

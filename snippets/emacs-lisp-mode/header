@@ -12,7 +12,7 @@
 ;; Version: 0.1
 ;; Last-Updated: `(format-time-string "%Y-%m-%d %T")`
 ;;           By: $3
-;; URL: https://www.github.org/xhcoding/$1
+;; URL: https://github.com/xhcoding/$1
 ;; Keywords: $5
 ;; Compatibility: `(substring (emacs-version) 0 (string-match " (" (emacs-version))))`
 ;;

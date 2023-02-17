@@ -835,7 +835,14 @@ ref: https://github.com/manateelazycat/auto-save
          (floor (frame-height) 3)))
       (setq popper-window-height #'my-popper-fit-window-height)
 
-      (defun popper-close-window-hack (&rest _)
+      (defun my-popper-window-popper-p (buffer)
+        "Whether `buffer' is popper window."
+        (when-let* ((window (caar popper-open-popup-alist))
+                    (buffer (cdar popper-open-popup-alist))
+                    (window-p (string= (buffer-name) (buffer-name buffer))))
+          window))
+
+      (defun my-popper-close-window (&rest _)
         "Close popper window via `C-g'."
         ;; `C-g' can deactivate region
         (when (and (called-interactively-p 'interactive)
@@ -844,7 +851,8 @@ ref: https://github.com/manateelazycat/auto-save
           (let ((window (caar popper-open-popup-alist)))
             (when (window-live-p window)
               (delete-window window)))))
-      (advice-add #'keyboard-quit :before #'popper-close-window-hack))
+
+      (advice-add #'keyboard-quit :before #'my-popper-close-window))
     )
 
 
@@ -971,7 +979,31 @@ ref: https://github.com/manateelazycat/auto-save
 #+begin_src elisp
   (use-package ace-window
     :straight t
-    :bind (("M-o" . ace-window)))
+    :pretty-hydra
+    ((:title (pretty-hydra-title "Window Management" 'faicon "th" :height 1.1 :v-adjust -0.1)
+             :foreign-keys warn :quit-key ("q" "C-g"))
+     ("Split"
+      (("r" split-window-right "horizontally" :exit t)
+       ("R" split-window-right "horizontally continue")
+       ("v" split-window-below "vertically" :exit t)
+       ("V" split-window-below "vertically continue"))
+
+      "Resize"
+      (("h" shrink-window-horizontally "←")
+       ("j" enlarge-window "↓")
+       ("k" shrink-window "↑")
+       ("l" enlarge-window-horizontally "→")
+       ("n" balance-windows "balance" :exit t))
+
+      "Zoom"
+      (("+" text-scale-increase "in")
+       ("=" text-scale-increase "in")
+       ("-" text-scale-decrease "out")
+       ("0" (text-scale-increase 0) "reset"))))
+      :bind (("M-o" . ace-window)
+             ("C-c w" . ace-window-hydra/body))
+
+    )
 #+end_src
 
 ** toggle-one-window 快速切换到单窗口
@@ -979,20 +1011,39 @@ ref: https://github.com/manateelazycat/auto-save
 ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
-  (defvar my--window-configuration nil
+  (defvar my-window--configuration nil
     "The window configuration use for `toggle-one-window'.")
+
+  (defun my-window--one-window-p ()
+    (equal 1 (length (cl-remove-if #'(lambda (w)
+                                   (and
+                                    (window-dedicated-p w)
+                                    (not (window-parameter w 'quit-restore))))
+                               (window-list)))))
 
   (defun my/toggle-one-window ()
     "Toggle between window layout and one window."
     (interactive)
-    (if (equal (length (cl-remove-if #'window-dedicated-p (window-list))) 1)
-        (if my--window-configuration
-            (progn
-              (set-window-configuration my--window-configuration)
-              (setq my--window-configuration nil))
-          (message "No other windows exist."))
-      (setq my--window-configuration (current-window-configuration))
-      (delete-other-windows)))
+    (cond
+     ;; 如果当前 buffer 所在 Window 是 popper
+     ((my-popper-window-popper-p (current-buffer))
+      (if (my-window--one-window-p)
+          (when my-window--configuration
+            (set-window-configuration my-window--configuration)
+            (setq my-window--configuration nil))
+
+        (setq my-window--configuration (current-window-configuration))
+        (let ((buffer (current-buffer)))
+          (other-window 1)
+          (delete-other-windows)
+          (switch-to-buffer buffer))))
+     (t
+      (if (my-window--one-window-p)
+          (when my-window--configuration
+            (set-window-configuration my-window--configuration)
+            (setq my-window--configuration nil))
+        (setq my-window--configuration (current-window-configuration))
+        (delete-other-windows)))))
 
   (global-set-key (kbd "M-;") #'my/toggle-one-window)
 #+end_src
@@ -2949,8 +3000,7 @@ Wanderlust + offlineimap3 + mu
 
      '("/" . evilnc-comment-or-uncomment-lines)
 
-     '("w3" . split-window-right)
-     '("w0" . delete-other-windows)
+     '("w" . ace-window-hydra/body)
      )
 
     (meow-normal-define-key

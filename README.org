@@ -708,8 +708,32 @@ ref: https://github.com/manateelazycat/auto-save
     (awesome-tray-mode-line-inactive-color "#9f9f9f")
     (awesome-tray-date-format "%H:%M")
     (awesome-tray-git-format  "%s")
-    (awesome-tray-active-modules '("location" "buffer-name" "git" "input-method" "date"))
+    (awesome-tray-buffer-name-max-length 40)
+    (awesome-tray-active-modules '("location" "buffer-name" "buffer-encoding" "git" "input-method" "date"))
     :config
+
+    (defun my-awesome-tray-module-buffer-encoding-info ()
+      (concat (pcase (coding-system-eol-type buffer-file-coding-system)
+                (0 "LF ")
+                (1 "CRLF ")
+                (2 "CR ")
+                (_ ""))
+              (let* ((sys (coding-system-plist buffer-file-coding-system))
+                     (cat (plist-get sys :category))
+                     (sym (if (memq cat
+                                    '(coding-category-undecided coding-category-utf-8))
+                              'utf-8
+                            (plist-get sys :name))))
+                (upcase (symbol-name sym)))))
+
+    (defface my-awesome-tray-module-buffer-encoding-face
+      '((t :inherit awesome-tray-green-face))
+      "Buffer encoding module face."
+      :group 'awesome-tray)
+
+    (add-to-list 'awesome-tray-module-alist
+                 '("buffer-encoding" . (my-awesome-tray-module-buffer-encoding-info my-awesome-tray-module-buffer-encoding-face)))
+
     (awesome-tray-mode +1)
     )
 
@@ -1172,9 +1196,9 @@ ref:https://github.com/manateelazycat/toggle-one-window
       (setq my-eshell-z--table (make-hash-table :test 'equal))
       (when (file-exists-p my-eshell-z-file-name)
         (dolist (element (with-temp-buffer
-                          (insert-file-contents my-eshell-z-file-name)
-                          (goto-char (point-min))
-                          (read (current-buffer))))
+                           (insert-file-contents my-eshell-z-file-name)
+                           (goto-char (point-min))
+                           (read (current-buffer))))
           (when (file-directory-p (car element))
             (puthash (car element) (cadr element) my-eshell-z--table)))))
 
@@ -1189,7 +1213,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
                            (add-to-list 'result (list key (- value 0.1))))
                          )
                      my-eshell-z--table)
-          (prin1 result (current-buffer))))))
+            (prin1 result (current-buffer))))))
 
     (defun my-eshell-z--update ()
       (let ((cur-dir default-directory))
@@ -1203,10 +1227,11 @@ ref:https://github.com/manateelazycat/toggle-one-window
         (if (not first)
             (setq result "~")
           (cond
-           ((string-match-p "^[.]+$" first)
+           ((string-match-p "^[\\.]+$" first)
             (let ((target ""))
-              (cl-loop repeat (length path) do
-                       (setq target (concat "../")))))
+              (cl-loop repeat (length first) do
+                       (setq target (concat target "../")))
+              (setq result target)))
            ((string= "-" first)
             (setq result first))
            (t (let ((regex "")
@@ -1217,8 +1242,8 @@ ref:https://github.com/manateelazycat/toggle-one-window
                 (maphash #'(lambda (key value)
                              (when (string-match-p regex key)
                                (when (and target-score (> value target-score))
-                                   (setq target-dir key
-                                         target-score value))
+                                 (setq target-dir key
+                                       target-score value))
                                (unless target-score
                                  (setq target-dir key
                                        target-score value))))
@@ -1231,7 +1256,20 @@ ref:https://github.com/manateelazycat/toggle-one-window
         (eshell/cd result)))
     (add-hook 'eshell-mode-hook #'my-eshell-z--load)
     (add-hook 'eshell-directory-change-hook #'my-eshell-z--update)
-    (add-hook 'kill-emacs-hook #'my-eshell-z--save))
+    (add-hook 'kill-emacs-hook #'my-eshell-z--save)
+
+    (defun eshell/zp (&rest args)
+      "Jump directory in current project."
+      (let* ((project-root (nth 2 (project-current))))
+        (unless project-root
+          (setq project-root default-directory))
+        (when-let* ((result (eshell-command-result 
+                            (concat "fd --type directory --absolute-path " (car args) " " project-root)))
+                    (paths (split-string result "\n" t)))
+          (if (= (length paths) 1)
+              (eshell/cd (car paths))
+            (eshell/cd (completing-read "Choose: " paths nil t))))))
+    )
 #+end_src
 
 ** fingertip 智能括号插入
@@ -2269,12 +2307,6 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :config
     ;; 额外的行间距，0.1表示10%，1表示1px
     (setq-default line-spacing 0.1)
-    ;; tag边框宽度，还可以设置为 `auto' 即自动计算
-    (setq org-modern-label-border 1)
-    ;; 设置表格竖线宽度，默认为3
-    (setq org-modern-table-vertical 2)
-    ;; 设置表格横线为0，默认为0.1
-    (setq org-modern-table-horizontal 0)
     ;; 复选框美化
     (setq org-modern-checkbox
           '((?X . #("▢✓" 0 2 (composition ((2)))))
@@ -2289,6 +2321,8 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (setq org-modern-block-name nil)
     ;; #+关键字美化，我们使用了 `prettify-symbols-mode'
     (setq org-modern-keyword nil)
+    ;; 关闭表格美化
+    (setq org-modern-table nil)
     )
 
   (use-package org-appear

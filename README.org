@@ -1727,7 +1727,10 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src emacs-lisp
   (use-package python
-    :hook (python-ts-mode . my-enable-lsp-bridge))
+    :hook (python-ts-mode . my-enable-lsp-bridge)
+    :config
+    (require 'dap-python)
+    (setq dap-python-debugger 'debugpy))
 #+end_src
 
 ** java 开发配置
@@ -1891,130 +1894,138 @@ ref:https://github.com/manateelazycat/toggle-one-window
     ;; fix runInTerminal
     (defun dap--start-process (debug-session parsed-msg)
       (-let* (((&hash "arguments" (&hash? "args" "cwd" "title" "kind") "seq")
-           parsed-msg)
-          (default-directory cwd)
-          (command-to-run (combine-and-quote-strings args " "))
-          (kind (or kind dap-default-terminal-kind)))
-    (or
-     (when (string= kind "external")
-       (let* ((name (or title (concat (dap--debug-session-name debug-session)
-                      "- terminal")))
-          (terminal-argv
-           (cl-loop for part in dap-external-terminal collect
-                (->> part (s-replace "{display}" name)
-                 (s-replace "{command}" command-to-run)))))
-         (when
-         (condition-case-unless-debug err
-             (progn (apply #'start-process name name terminal-argv) t)
-           (error (lsp--warn
-               "dap-debug: failed to start external
+               parsed-msg)
+              (default-directory cwd)
+              (command-to-run (combine-and-quote-strings args " "))
+              (kind (or kind dap-default-terminal-kind)))
+        (or
+         (when (string= kind "external")
+           (let* ((name (or title (concat (dap--debug-session-name debug-session)
+                                          "- terminal")))
+                  (terminal-argv
+                   (cl-loop for part in dap-external-terminal collect
+                            (->> part (s-replace "{display}" name)
+                                 (s-replace "{command}" command-to-run)))))
+             (when
+                 (condition-case-unless-debug err
+                     (progn (apply #'start-process name name terminal-argv) t)
+                   (error (lsp--warn
+                           "dap-debug: failed to start external
   terminal: %S (launch command was: \"%s\"). Set
   `dap-external-terminal' to the correct value or install the
   terminal configured (probably xterm)."
-               (error-message-string err)
-               (mapconcat #'shell-quote-argument terminal-argv " "))
-              ;; we did *not* succeed; use the integrated terminal
-              ;; instead
-              nil))
-           ;; NOTE: we cannot know the process id of the started
-           ;; application.
-           (dap--send-message (dap--make-success-response
-                   seq "runInTerminal" (make-hash-table :test 'equal))
-                  ;; NOTE: assuming that the terminal starts the
-                  ;; application without another subshell
-                  (dap--resp-handler) debug-session)
-           ;; success; don't use the integrated terminal
-           t)))
-     ;; integrated terminal *or* the external terminal could not be executed
-     ;; (file error).
-     (when (or (string= kind "integrated") (string= kind "external"))
-       (funcall dap-internal-terminal command-to-run title debug-session)
-       ;; NOTE: we don't know the PID of the shell that ran the process and we
-       ;; don't know the PID of the started process.
-       (dap--send-message (dap--make-success-response seq "runInTerminal" (make-hash-table :test 'equal))
-                  (dap--resp-handler) debug-session)
-       ;; success
-       t)
-     (dap--send-message (dap--make-error-response
-                 seq "runInTerminal" nil
-                 (format "unknown terminal kind %s" kind))
-                (dap--resp-handler) debug-session))))
+                           (error-message-string err)
+                           (mapconcat #'shell-quote-argument terminal-argv " "))
+                          ;; we did *not* succeed; use the integrated terminal
+                          ;; instead
+                          nil))
+               ;; NOTE: we cannot know the process id of the started
+               ;; application.
+               (dap--send-message (dap--make-success-response
+                                   seq "runInTerminal" (make-hash-table :test 'equal))
+                                  ;; NOTE: assuming that the terminal starts the
+                                  ;; application without another subshell
+                                  (dap--resp-handler) debug-session)
+               ;; success; don't use the integrated terminal
+               t)))
+         ;; integrated terminal *or* the external terminal could not be executed
+         ;; (file error).
+         (when (or (string= kind "integrated") (string= kind "external"))
+           (funcall dap-internal-terminal command-to-run title debug-session)
+           ;; NOTE: we don't know the PID of the shell that ran the process and we
+           ;; don't know the PID of the started process.
+           (dap--send-message (dap--make-success-response seq "runInTerminal" (make-hash-table :test 'equal))
+                              (dap--resp-handler) debug-session)
+           ;; success
+           t)
+         (dap--send-message (dap--make-error-response
+                             seq "runInTerminal" nil
+                             (format "unknown terminal kind %s" kind))
+                            (dap--resp-handler) debug-session))))
 
-      ;; codelldb
+    (defun my-dap-internal-terminal-cmd (command title debug-session)
+      (let ((buf (dap--make-terminal-buffer title debug-session)))
+        (async-shell-command (concat "start cmd /c \"" command " & pause \"") buf buf)))
+
+    (setq dap-internal-terminal #'my-dap-internal-terminal-cmd)
+
+
+    ;; codelldb
     (require 'dap-codelldb)
 
     (defun my-dap--get-program-from-cargo-config(conf)
       "Get program from cargo config."
       (when-let* ((cwd (plist-get conf :cwd))
-          (cargo (plist-get conf :cargo))
-          (args (plist-get cargo :args)))
-    (let* ((default-directory cwd)
-           (command (format "cargo %s --message-format=json" (mapconcat 'identity args " ")))
-           (output (shell-command-to-string command))
-           (lines (split-string output "\n"))
-           (msg)
-           (artifacts))
-      (dolist (line lines)
-        (setq msg (ignore-errors (json-parse-string line)))
-        (when (and msg (string-equal (gethash "reason" msg) "compiler-artifact"))
-          (let* ((target (gethash "target" msg))
-             (is-binary (member "bin" (append (gethash "crate_types" target) nil)))
-             (kind (gethash "kind" target))
-             (is-build-script (member "custom-build" (append kind nil)))
-             (profile-test (gethash "test" (gethash "profile" msg)))
-             (name (gethash "name" target))
-             (executable (gethash "executable" msg)))
-        (when (or (and is-binary (not is-build-script)) profile-test)
-          (push `(:filename ,executable :name ,name :kind ,(aref kind 0)) artifacts)))))
+                  (cargo (plist-get conf :cargo))
+                  (args (plist-get cargo :args)))
+        (let* ((default-directory cwd)
+               (command (format "cargo %s --message-format=json" (mapconcat 'identity args " ")))
+               (output (shell-command-to-string command))
+               (lines (split-string output "\n"))
+               (msg)
+               (artifacts))
+          (dolist (line lines)
+            (setq msg (ignore-errors (json-parse-string line)))
+            (when (and msg (string-equal (gethash "reason" msg) "compiler-artifact"))
+              (let* ((target (gethash "target" msg))
+                     (is-binary (member "bin" (append (gethash "crate_types" target) nil)))
+                     (kind (gethash "kind" target))
+                     (is-build-script (member "custom-build" (append kind nil)))
+                     (profile-test (gethash "test" (gethash "profile" msg)))
+                     (name (gethash "name" target))
+                     (executable (gethash "executable" msg)))
+                (when (or (and is-binary (not is-build-script)) profile-test)
+                  (push `(:filename ,executable :name ,name :kind ,(aref kind 0)) artifacts)))))
 
-      (let* ((filter (plist-get cargo :filter))
-         (filter-name (plist-get filter :name))
-         (filter-kind (plist-get filter :kind))
-         (filtered-artifacts))
-        (if (not (and filter filter-name filter-kind))
-        (setq filtered-artifacts (copy-tree artifacts))
-          (dolist (artifact artifacts)
-        (when (and (string= filter-name (plist-get artifact :name))
-               (string= filter-kind (plist-get artifact :kind))
-               )
-          (push artifact filtered-artifacts)
-          )))
-        (if (length= filtered-artifacts 1)
-        (plist-get (car filtered-artifacts) :filename)
-          (message "Cargo artifact error, check launch.json.")
-          nil)))))
+          (let* ((filter (plist-get cargo :filter))
+                 (filter-name (plist-get filter :name))
+                 (filter-kind (plist-get filter :kind))
+                 (filtered-artifacts))
+            (if (not (and filter filter-name filter-kind))
+                (setq filtered-artifacts (copy-tree artifacts))
+              (dolist (artifact artifacts)
+                (when (and (string= filter-name (plist-get artifact :name))
+                           (string= filter-kind (plist-get artifact :kind))
+                           )
+                  (push artifact filtered-artifacts)
+                  )))
+            (if (length= filtered-artifacts 1)
+                (plist-get (car filtered-artifacts) :filename)
+              (message "Cargo artifact error, check launch.json.")
+              nil)))))
 
     (defun my-dap--get-codelldb-params (conf)
       ""
       (let ((params (make-hash-table :test 'equal)))
-    (puthash "evaluateForHovers" 't params)
-    (puthash "commandCompletions" 't params)
-    (when (plist-get conf :cargo)
-      (puthash "sourceLanguages" (vector "rust") params)
-      )
-    (json-encode (json-encode params))))
+        (puthash "evaluateForHovers" 't params)
+        (puthash "commandCompletions" 't params)
+        (when (plist-get conf :cargo)
+          (puthash "sourceLanguages" (vector "rust") params)
+          )
+        (json-encode (json-encode params))))
 
     (defun dap-codelldb--populate-lldb (conf)
       "Populate CONF with the required arguments."
       (let ((debug-port (dap--find-available-port)))
-    (-> conf
-        (dap--put-if-absent :type "lldb")
-        (dap--put-if-absent :host "localhost")
-        (dap--put-if-absent :debugServer debug-port)
-        (dap--put-if-absent :program-to-start
-                (format "%s --port %s --params %s"
-                    dap-codelldb-debug-program
-                    debug-port
-                    (my-dap--get-codelldb-params conf)
-                    ))
-        (dap--put-if-absent :cwd default-directory)
-        (dap--put-if-absent :program (or (my-dap--get-program-from-cargo-config conf) (expand-file-name (read-file-name "Select file to debug: "))))
-        )))
+        (-> conf
+            (dap--put-if-absent :type "lldb")
+            (dap--put-if-absent :host "localhost")
+            (dap--put-if-absent :debugServer debug-port)
+            (dap--put-if-absent :program-to-start
+                                (format "%s --liblldb %s --port %s --params %s"
+                                        dap-codelldb-debug-program
+                                        (replace-regexp-in-string "/" "\\\\" (expand-file-name "extension/lldb/bin/liblldb.dll" dap-codelldb-debug-path))
+                                        debug-port
+                                        (my-dap--get-codelldb-params conf)
+                                        ))
+            (dap--put-if-absent :cwd default-directory)
+            (dap--put-if-absent :program (or (my-dap--get-program-from-cargo-config conf) (expand-file-name (read-file-name "Select file to debug: "))))
+            )))
 
     (dap-register-debug-provider "lldb" 'dap-codelldb--populate-lldb)
 
     (add-hook 'dap-stopped-hook
-          (lambda (arg) (call-interactively #'dap-hydra)))
+              (lambda (arg) (call-interactively #'dap-hydra)))
 
     (dap-auto-configure-mode +1)
 

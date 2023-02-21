@@ -1,4 +1,3 @@
-#+startup: overview
 #+html: <p align="center"><img src="images/emacs-logo.svg" width=150 height=150/></p>
 #+html: <p align="center"><a href="https://www.gnu.org/software/emacs/"><b>GNU Emacs</b></a></p>
 #+html: <p align="center">
@@ -100,6 +99,7 @@
   - [[#c-开发配置][C++ 开发配置]]
     - [[#cmake-ts-mode-设置][cmake-ts-mode 设置]]
     - [[#c-ts-mode-设置][c-ts-mode 设置]]
+    - [[#导入-vs-环境变量][导入 VS 环境变量]]
   - [[#rust-开发配置][Rust 开发配置]]
   - [[#python-开发配置][python 开发配置]]
   - [[#java-开发配置][java 开发配置]]
@@ -108,7 +108,7 @@
     - [[#typescript][Typescript]]
     - [[#html][HTML]]
     - [[#css][css]]
-  - [[#json-mode][json-mode]]
+  - [[#json-ts-mode][json-ts-mode]]
   - [[#qml-开发][qml 开发]]
   - [[#plantuml-支持][plantuml 支持]]
   - [[#dap-mode-调试][dap-mode 调试]]
@@ -133,6 +133,7 @@
     - [[#org-download-下载图片][org-download 下载图片]]
   - [[#eaf-配置][eaf 配置]]
   - [[#popweb-配置][popweb 配置]]
+  - [[#dictionary-overlay-方便阅读英文文章][dictionary-overlay 方便阅读英文文章]]
   - [[#邮件配置][邮件配置]]
     - [[#wanderlust-邮件前端][Wanderlust 邮件前端]]
     - [[#alert-toast-邮件通知][alert-toast 邮件通知]]
@@ -141,7 +142,7 @@
   - [[#which-key-按键提示][which-key 按键提示]]
   - [[#meow-模式编辑][meow 模式编辑]]
   - [[#启动-emacs-server][启动 emacs server]]
-  - [[#将输入法切换到英文][将输入法切换到英文]]
+  - [[#daemon-模式下启动更多内容][daemon 模式下启动更多内容]]
 
 * early-init.el
 :PROPERTIES:
@@ -648,14 +649,21 @@ ref: https://github.com/manateelazycat/auto-save
 ** 字体和主题
 
 #+begin_src elisp
-  (set-face-attribute 'default nil :font "Cascadia Code PL" :height 120)
+  (use-package faces
+    :custom-face
+    (variable-pitch
+     ((t (:font ,(font-xlfd-name (font-spec :family "Alegreya"))))))
+    (default
+     ((t (:font ,(font-xlfd-name (font-spec :family "Cascadia Code PL"))
+                :height 120))))
+    (fixed-pitch
+     ((t (:inherit default))))
+    :config
+    (set-fontset-font t 'emoji (font-spec :family "Segoe UI Symbol"))
 
+    (set-fontset-font t 'chinese-gbk (font-spec :family "微软雅黑"))
 
-  (set-face-attribute 'variable-pitch nil :font "Alegreya")
-
-  (set-fontset-font t 'emoji (font-spec :family "Segoe UI Symbol"))
-
-  (set-fontset-font t 'chinese-gbk (font-spec :family "微软雅黑"))
+    )
 
 
   (use-package modus-themes
@@ -709,8 +717,20 @@ ref: https://github.com/manateelazycat/auto-save
     (awesome-tray-date-format "%H:%M")
     (awesome-tray-git-format  "%s")
     (awesome-tray-buffer-name-max-length 40)
-    (awesome-tray-active-modules '("location" "buffer-name" "buffer-encoding" "git" "input-method" "date"))
+    (awesome-tray-active-modules '("location" "buffer-name" "buffer-encoding" "input-method" "date"))
     :config
+
+    ;; fix daemon mode get frame width error
+    (defun awesome-tray-get-frame-width ()
+      "Only calculating a main Frame width, to avoid wrong width when new frame, such as `snails'."
+      (if (display-graphic-p)
+          (with-selected-frame
+              (if (daemonp)
+                  (car (last (butlast (frame-list))))
+                (car (last (frame-list))))
+            (frame-width))
+        (frame-width)))
+
 
     (defun my-awesome-tray-module-buffer-encoding-info ()
       (concat (pcase (coding-system-eol-type buffer-file-coding-system)
@@ -1121,6 +1141,9 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (eshell-kill-processes-on-exit t)
     :config
 
+    (my-cc--import-vcvars)
+    (setq exec-path (parse-colon-path (getenv "Path")))
+
     ;; 默认为插入模式
     (add-to-list 'meow-mode-state-list '(eshell-mode . insert))
 
@@ -1147,7 +1170,6 @@ ref:https://github.com/manateelazycat/toggle-one-window
         (buffer-string)))
 
     (advice-add 'eshell/cat :override #'my-eshell-cat-with-syntax-highlight)
-
 
     )
 #+end_src
@@ -1323,7 +1345,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :defer t)
 
   (use-package lsp-bridge
-    :straight (lsp-bridge :type git :host github :repo "manateelazycat/lsp-bridge"
+    :straight (lsp-bridge :type git :host github :repo "xhcoding/lsp-bridge" :branch "feat/render-preproc"
               :files ("*")
               :build nil)
     :defer t
@@ -1374,6 +1396,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (push '(scss-mode . "vscode-css-language-server") lsp-bridge-single-lang-server-mode-list)
     (push '(cmake-ts-mode . "cmake-language-server") lsp-bridge-single-lang-server-mode-list)
     (push '(java-ts-mode . "jdtls") lsp-bridge-single-lang-server-mode-list)
+    (push '(json-ts-mode . "vscode-json-language-server") lsp-bridge-single-lang-server-mode-list)
 
     (push '(qml-ts-mode . "qmlls_javascript") lsp-bridge-multi-lang-server-mode-list)
 
@@ -1398,7 +1421,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 启动 lsp-bridge
 
 #+begin_src elisp
-  (defun my-enable-lsp-bridge()
+  (defun my-lsp-bridge-enable()
     "Enable lsp bridge mode."
     (require 'yasnippet)
     (yas-minor-mode)
@@ -1650,6 +1673,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
   (setq major-mode-remap-alist
         '((c-mode          . c-ts-mode)
           (c++-mode        . c++-ts-mode)
+          (c-or-c++-mode   . c-or-c++-ts-mode)
           (cmake-mode      . cmake-ts-mode)
           (conf-toml-mode  . toml-ts-mode)
           (csharp-mode     . csharp-ts-mode)
@@ -1685,7 +1709,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :hook ((emacs-lisp-mode . my-enable-elisp-dev))
     :config
     (defun my-enable-elisp-dev ()
-      (my-enable-lsp-bridge)
+      (my-lsp-bridge-enable)
       (treesit-parser-create 'elisp)))
 #+end_src
 
@@ -1695,7 +1719,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 #+begin_src emacs-lisp
   (use-package cmake-ts-mode
     :mode "CMakeLists.txt\\'"
-    :hook (cmake-ts-mode . my-enable-lsp-bridge))
+    :hook (cmake-ts-mode . my-lsp-bridge-enable))
 #+end_src
 
 *** c-ts-mode 设置
@@ -1710,9 +1734,112 @@ ref:https://github.com/manateelazycat/toggle-one-window
       ;; treesit-forward-sexp 工作异常
       (setq forward-sexp-function nil)
       (setq-local lsp-bridge-completion-hide-characters '(";" "(" ")" "[" "]" "{" "}" "," "\""))
-      (my-enable-lsp-bridge)
+      (my-lsp-bridge-enable)
+      (require 'lsp-bridge-semantic-tokens)
+      (lsp-bridge-semantic-tokens-render-preproc-enable)
       )
+
+    (defun my-cc--treesit-match-namespace (node parent bol &rest _)
+      (string= (treesit-node-type (treesit-node-parent parent)) "namespace_definition"))
+
+    (defun my-cc--indent-style ()
+      "Indent rules supported by `c-ts-mode'"
+      (let* ((mode (if (derived-mode-p 'c-ts-mode) 'c 'cpp))
+             (common (alist-get 'gnu (c-ts-mode--indent-styles mode))))
+        `(
+          ;; namespace
+          (my-cc--treesit-match-namespace parent-bol 0)
+          ,@common)))
+
+    (setq c-ts-mode-indent-style #'my-cc--indent-style)
+
     )
+#+end_src
+
+*** 导入 VS 环境变量
+
+#+begin_src elisp
+  (defconst my-cc--msvc-env-vars
+    '(
+      "DevEnvDir"
+      "Framework40Version"
+      "FrameworkDir"
+      "FrameworkDIR32"
+      "FrameworkDIR64"
+      "FrameworkVersion"
+      "FrameworkVersion32"
+      "FrameworkVersion64"
+      "INCLUDE"
+      "LIB"
+      "LIBPATH"
+      "NETFXSDKDir"
+      "PATH"
+      "UCRTVersion"
+      "UniversalCRTSdkDir"
+      "user_inputversion"
+      "VCIDEInstallDir"
+      "VCINSTALLDIR"
+      "VCToolsInstallDir"
+      "VCToolsRedistDir"
+      "VCToolsVersion"
+      "VS170COMNTOOLS"
+      "VisualStudioVersion"
+      "VSINSTALLDIR"
+      "WindowsLibPath"
+      "WindowsSdkBinPath"
+      "WindowsSdkDir"
+      "WindowsSDKLibVersion"
+      "WindowsSDKVersion"
+      "WindowsSDK_ExecutablePath_x64"
+      "WindowsSDK_ExecutablePath_x86"
+      ;;/* These are special also need to be cached */
+      "CL"
+      "_CL_"
+      "LINK"
+      "_LINK_"
+      "TMP"
+      "UCRTCONTEXTROOT"
+      "VCTARGETSPATH"
+  )
+    "List of environment variables required for Visual C++ to run as expected for a VS installation.")
+
+  ;; 导入 vs2022 community 64位构建环境变量
+  (defun my-cc--import-vcvars ()
+    "Import the environment variables corresponding to a VS dev batch file."
+    (let* ((common-dir "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/Tools")
+           (devbat "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Auxiliary/Build/vcvarsall.bat")
+           (args "amd64")
+           (major-version "17")
+           (bat-path (expand-file-name "cmake-tools-vcvars.bat" (temporary-file-directory)))
+           (env-file-path (concat bat-path ".env"))
+           (vars (make-hash-table :test 'equal)))
+      (setq bat
+            (format "@echo off
+  cd /d \"%%~dp0\"
+  set \"VS%s0COMNTOOLS=%s\"
+  set \"INCLUDE=\"
+  call \"%s\" %s
+  setlocal enableextensions enabledelayedexpansion
+  cd /d \"%%~dp0\"
+  %s" major-version common-dir devbat args
+  (mapconcat (lambda (env-var) (format "if DEFINED %s echo %s := %%%s%% >> %s" env-var env-var env-var env-file-path))
+             my-cc--msvc-env-vars "\n")))
+      (with-temp-file bat-path
+        (insert bat))
+      (shell-command-to-string (concat "cmd.exe /c " bat-path))
+
+      (if (not (file-exists-p env-file-path))
+          nil
+        (dolist (line (with-temp-buffer
+                        (insert-file-contents env-file-path)
+                        (split-string (buffer-string) "\n" t)))
+          (let ((var (split-string line " := " t)))
+            (puthash (string-trim (car var)) (string-trim (cadr var)) vars)))
+        (if (not (gethash "INCLUDE" vars))
+            nil
+          (maphash #'(lambda (key value)
+                       (setenv key value)) 
+                   vars)))))
 #+end_src
 
 ** Rust 开发配置
@@ -1720,14 +1847,14 @@ ref:https://github.com/manateelazycat/toggle-one-window
 #+begin_src elisp
   (use-package rust-ts-mode
     :mode "\\.rs\\'"
-    :hook (rust-ts-mode . my-enable-lsp-bridge))
+    :hook (rust-ts-mode . my-lsp-bridge-enable))
 #+end_src
 
 ** python 开发配置
 
 #+begin_src emacs-lisp
   (use-package python
-    :hook (python-ts-mode . my-enable-lsp-bridge)
+    :hook (python-ts-mode . my-lsp-bridge-enable)
     :config
     (require 'dap-python)
     (setq dap-python-debugger 'debugpy))
@@ -1745,7 +1872,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
       (require 'lsp-bridge-jdtls)
       (setq-local lsp-bridge-get-single-lang-server-by-project 'lsp-bridge-get-jdtls-server-by-project)
-      (my-enable-lsp-bridge))
+      (my-lsp-bridge-enable))
 
     ;； jdtls 目录
     (defconst my--java-jdtls-root-dir (expand-file-name "apps/jdtls/current" (getenv "SCOOP")))
@@ -1813,7 +1940,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package js
-    :hook (js-ts-mode . my-enable-lsp-bridge)
+    :hook (js-ts-mode . my-lsp-bridge-enable)
     )
 #+end_src
 
@@ -1822,7 +1949,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 #+begin_src emacs-lisp
   (use-package typescript-ts-mode
     :mode "\\.ts\\'"
-    :hook (typescript-ts-base-mode . my-enable-lsp-bridge))
+    :hook (typescript-ts-base-mode . my-lsp-bridge-enable))
 #+end_src
 
 *** HTML
@@ -1831,7 +1958,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
   (use-package web-mode
     :straight t
     :mode "\\.\\(phtml\\|php\\|[gj]sp\\|as[cp]x\\|erb\\|djhtml\\|html?\\|hbs\\|ejs\\|jade\\|swig\\|tm?pl\\|vue\\)$"
-    :hook (web-mode . my-enable-lsp-bridge)
+    :hook (web-mode . my-lsp-bridge-enable)
     :custom
     (web-mode-markup-indent-offset 2)
     (web-mode-css-indent-offset 2)
@@ -1845,21 +1972,52 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package css-mode
-    :hook (css-ts-mode . my-enable-lsp-bridge)
+    :hook (css-ts-mode . my-lsp-bridge-enable)
     :custom
     (css-indent-offset 2))
 
   (use-package scss-mode
-    :hook (scss-mode . my-enable-lsp-bridge))
+    :hook (scss-mode . my-lsp-bridge-enable))
 #+end_src
 
-** json-mode
+** json-ts-mode
 
 #+begin_src elisp
-  (use-package json-js-mode
-    :defer t
+  (use-package json-ts-mode
+    :hook (json-ts-mode . my-json-enable-dev)
     :custom
-    (json-ts-mode-indent-offset 2))
+    (json-ts-mode-indent-offset 2)
+    :config
+    (defun my-json-enable-dev ()
+      (my-lsp-bridge-enable)
+      )
+
+    (defun my-json-generate-language-server-json ()
+      (with-temp-file (expand-file-name "vscode-json-language-server.json" my-etc-dir)
+        (url-insert-file-contents "https://www.schemastore.org/api/json/catalog.json")
+        (let* ((catalog (json-parse-string (buffer-substring-no-properties (point-min) (point-max)) :object-type 'plist))
+               (schemas (plist-get catalog :schemas))
+               (exclude-pattern ".*\.\\(cff\\|cjs\\|js\\|mjs\\|toml\\|yaml\\|yml\\)$")
+               (json-validation ))
+          (mapc #'(lambda (schema)
+                    (when-let* ((url (plist-get schema :url))
+                                (file-match (plist-get schema :fileMatch))
+                                (filtered-file-match (seq-filter #'(lambda (match)
+                                                                     (and (not (string-prefix-p "!" match))
+                                                                          (not (string-match-p exclude-pattern match)))) 
+                                                                 file-match)))
+                      (add-to-list 'json-validation `((:url . ,url) (:fileMatch ., filtered-file-match)))))
+                schemas)
+
+          (let* ((ls '(:name "vscode-json-language-server" :languageId "json" :command ("vscode-json-language-server" "--stdio")))
+                 (json `(:schemas ,json-validation))
+                 (settings `(:json ,json))
+                 (json-encoding-pretty-print t))
+            (plist-put ls :settings settings)
+            (erase-buffer)
+            (goto-char (point-min))
+            (insert (json-encode ls))))))
+    )
 #+end_src
 
 ** qml 开发
@@ -1867,7 +2025,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 #+begin_src elisp
   (use-package qml-ts-mode
     :straight (qml-ts-mode :type git :host github :repo "xhcoding/qml-ts-mode")
-    :hook (qml-ts-mode . my-enable-lsp-bridge)
+    :hook (qml-ts-mode . my-lsp-bridge-enable)
     :custom
     (qml-ts-mode-indent-offset 4))
 #+end_src
@@ -1946,6 +2104,11 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (defun my-dap-internal-terminal-cmd (command title debug-session)
       (let ((buf (dap--make-terminal-buffer title debug-session)))
         (async-shell-command (concat "start cmd /c \"" command " & pause \"") buf buf)))
+
+    (defun my-dap-activate-emacs-window (&rest args)
+      (shell-command-to-string "python -c \"import pygetwindow as gw;gw.getWindowsWithTitle('Emacs')[0].activate()\""))
+
+    (add-hook 'dap-stopped-hook #'my-dap-activate-emacs-window)
 
     (setq dap-internal-terminal #'my-dap-internal-terminal-cmd)
 
@@ -2794,6 +2957,10 @@ ref:https://github.com/manateelazycat/toggle-one-window
     ;; 手动添加到 load-path
     (add-to-list 'load-path (straight--repos-dir "emacs-application-framework"))
     :config
+    (setq eaf-proxy-type "http")
+    (setq eaf-proxy-host "127.0.0.1")
+    (setq eaf-proxy-port "51837")
+  
     (setq eaf-webengine-default-zoom 2.5)
     (when sys-is-windows
       (setq eaf-chrome-bookmark-file (expand-file-name "~/AppData/Local/Microsoft/Edge/User Data/Default/Bookmarks")))
@@ -2828,6 +2995,28 @@ ref:https://github.com/manateelazycat/toggle-one-window
                          "document.getElementById('bodycontent').children[4].style.display = 'none';"
                          ))
     )
+#+end_src
+
+** dictionary-overlay 方便阅读英文文章
+
+#+begin_src elisp
+  (use-package websocket
+    :straight t
+    :defer t)
+
+  (use-package websocket-bridge
+    :straight (websocket-bridge :type git :host github :repo "ginqi7/websocket-bridge")
+    :defer t)
+
+
+  (use-package dictionary-overlay
+    :straight (dictionary-overlay :type git :host github :repo "ginqi7/dictionary-overlay"
+                                  :build nil)
+    :defer t
+    :init
+    (add-to-list 'load-path (straight--repos-dir "dictionary-overlay"))
+    :custom
+    (dictionary-overlay-python "python"))
 #+end_src
 
 ** 邮件配置
@@ -3129,14 +3318,15 @@ Wanderlust + offlineimap3 + mu
 ** 启动 emacs server
 
 #+begin_src elisp
-  (setq server-name "emacs-server-file")
-  (ignore-errors
+  (unless (daemonp)
     (server-start))
 #+end_src
 
-** 将输入法切换到英文
+** daemon 模式下启动更多内容
 
 #+begin_src elisp
-  (when sys-is-windows
-    (start-process "im-select" nil "im-select" "1033"))
+  (when (daemonp)
+    (require 'wl)
+    (wl))
+
 #+end_src

@@ -720,18 +720,6 @@ ref: https://github.com/manateelazycat/auto-save
     (awesome-tray-active-modules '("location" "buffer-name" "buffer-encoding" "input-method" "date"))
     :config
 
-    ;; fix daemon mode get frame width error
-    (defun awesome-tray-get-frame-width ()
-      "Only calculating a main Frame width, to avoid wrong width when new frame, such as `snails'."
-      (if (display-graphic-p)
-          (with-selected-frame
-              (if (daemonp)
-                  (car (last (butlast (frame-list))))
-                (car (last (frame-list))))
-            (frame-width))
-        (frame-width)))
-
-
     (defun my-awesome-tray-module-buffer-encoding-info ()
       (concat (pcase (coding-system-eol-type buffer-file-coding-system)
                 (0 "LF ")
@@ -1389,32 +1377,24 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 
     :config
-
-    (push '(js-ts-mode . "javascript") lsp-bridge-single-lang-server-mode-list)
-    (push '(typescript-ts-mode . "typescript") lsp-bridge-single-lang-server-mode-list)
-    (push '(css-ts-mode . "vscode-css-language-server") lsp-bridge-single-lang-server-mode-list)
     (push '(scss-mode . "vscode-css-language-server") lsp-bridge-single-lang-server-mode-list)
-    (push '(cmake-ts-mode . "cmake-language-server") lsp-bridge-single-lang-server-mode-list)
-    (push '(java-ts-mode . "jdtls") lsp-bridge-single-lang-server-mode-list)
     (push '(json-ts-mode . "vscode-json-language-server") lsp-bridge-single-lang-server-mode-list)
-
-    (push '(qml-ts-mode . "qmlls_javascript") lsp-bridge-multi-lang-server-mode-list)
 
     (setq lsp-bridge-user-langserver-dir my-etc-dir
           lsp-bridge-user-multiserver-dir my-etc-dir)
 
 
     (setq acm-enable-tabnine nil
-      acm-enable-quick-access t
-      lsp-bridge-enable-hover-diagnostic t)
+          acm-enable-quick-access t
+          lsp-bridge-enable-hover-diagnostic t)
 
     (defun my-lsp-bridge--remap-xref()
       "Remap xref key bind when lsp-bridge-mode enable."
       (unless (eq major-mode 'emacs-lisp-mode)
-    (local-set-key (kbd "M-.") #'lsp-bridge-find-def)
-    (local-set-key (kbd "M-?") #'lsp-bridge-find-references)
-    (local-set-key (kbd "M-,") #'lsp-bridge-find-def-return)
-    ))
+        (local-set-key (kbd "M-.") #'lsp-bridge-find-def)
+        (local-set-key (kbd "M-?") #'lsp-bridge-find-references)
+        (local-set-key (kbd "M-,") #'lsp-bridge-find-def-return)
+        ))
     )
 #+end_src
 
@@ -1449,6 +1429,28 @@ ref:https://github.com/manateelazycat/toggle-one-window
   (use-package evil-nerd-commenter
     :straight t
     :bind ("C-/" . evilnc-comment-or-uncomment-lines))
+#+end_src
+
+** apheleia 智能格式化代码
+
+#+begin_src elisp
+  (use-package apheleia
+    :straight t
+    :defer t
+    :bind ("C-M-\\" . my/format-buffer-or-region)
+    :config
+    (defun my/format-buffer-or-region ()
+      (interactive)
+      (cond
+       ((derived-mode-p 'emacs-lisp-mode)
+        (if (region-active-p)
+            (indent-region (region-beginning) (region-end))
+          (indent-region (point-min) (point-max))))
+       (lsp-bridge-mode
+        (lsp-bridge-code-format))
+       (t
+        (apheleia-format-buffer))))
+    )
 #+end_src
 
 ** git 配置
@@ -1720,24 +1722,25 @@ ref:https://github.com/manateelazycat/toggle-one-window
   (use-package cmake-ts-mode
     :mode "CMakeLists.txt\\'"
     :hook (cmake-ts-mode . my-lsp-bridge-enable))
+
+  (use-package async-await
+    :straight t)
 #+end_src
 
 *** c-ts-mode 设置
 
 #+begin_src elisp
   (use-package c-ts-mode
-    :hook (c++-ts-mode . my-enable-cc-dev)
+    :hook (c++-ts-mode . my-cc-enable-dev)
     :custom
     (c-ts-mode-indent-offset  4)
     :config
-    (defun my-enable-cc-dev()
+    (defun my-cc-enable-dev()
+      (apheleia-mode +1)
       ;; treesit-forward-sexp 工作异常
       (setq forward-sexp-function nil)
       (setq-local lsp-bridge-completion-hide-characters '(";" "(" ")" "[" "]" "{" "}" "," "\""))
-      (my-lsp-bridge-enable)
-      (require 'lsp-bridge-semantic-tokens)
-      (lsp-bridge-semantic-tokens-render-preproc-enable)
-      )
+      (my-lsp-bridge-enable))
 
     (defun my-cc--treesit-match-namespace (node parent bol &rest _)
       (string= (treesit-node-type (treesit-node-parent parent)) "namespace_definition"))
@@ -1940,7 +1943,12 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package js
-    :hook (js-ts-mode . my-lsp-bridge-enable)
+    :hook (js-ts-mode . my-js-enable-dev)
+    :config
+    (defun my-js-enable-dev ()
+      ;; treesit-forward-sexp 工作异常
+      (setq forward-sexp-function nil)
+      (my-lsp-bridge-enable))
     )
 #+end_src
 
@@ -2403,7 +2411,6 @@ ref:https://github.com/manateelazycat/toggle-one-window
     ;; 设置代码块用上下边线包裹
     (org-block-begin-line ((t (:underline t :background unspecified))))
     (org-block-end-line ((t (:overline t :underline nil :background unspecified))))
-
     :custom
     ;; 标题行美化
     (org-fontify-whole-heading-line t)
@@ -2440,6 +2447,20 @@ ref:https://github.com/manateelazycat/toggle-one-window
     ;; 上标^下标_是否需要特殊字符包裹，这里设置需要用大括号包裹
     (org-use-sub-superscripts '{})
     :config
+
+    (create-fontset-from-fontset-spec
+     (font-xlfd-name
+      (font-spec :family "等距更纱黑体 SC"
+                 :weight 'regular
+                 :slant 'normal
+                 :registry "fontset-orgtable")))
+
+    (set-fontset-font "fontset-orgtable" '(#x0 . #xffff)
+                      (font-spec :family "等距更纱黑体 SC"
+                                 :weight 'regular
+                                 :slant 'normal))
+
+    (set-face-attribute 'org-table nil :fontset "fontset-orgtable" :font "fontset-orgtable")
 
     (defun my--org-prettify-symbols ()
       (setq prettify-symbols-alist

@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: fi
+# key: fi
+# --
+for (${1:auto} ${2:i} = ${3:0}; $2 < ${4:nums}.size(); ++$2) {
+    $0
+}

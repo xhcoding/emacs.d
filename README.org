@@ -86,6 +86,7 @@
   - [[#lsp-bridge-代码补全][lsp-bridge 代码补全]]
   - [[#highlight-parentheses-高亮外层括号][highlight-parentheses 高亮外层括号]]
   - [[#evil-nerd-commenter-智能注释代码][evil-nerd-commenter 智能注释代码]]
+  - [[#apheleia-智能格式化代码][apheleia 智能格式化代码]]
   - [[#git-配置][git 配置]]
     - [[#magit][magit]]
     - [[#显示当前行的最后提交信息][显示当前行的最后提交信息]]
@@ -139,6 +140,8 @@
     - [[#alert-toast-邮件通知][alert-toast 邮件通知]]
   - [[#elfeed-rss-订阅][elfeed RSS 订阅]]
   - [[#leetcodeel-刷题][leetcode.el 刷题]]
+  - [[#latex][LaTex]]
+  - [[#emacs-aichat-ai-对话][emacs-aichat AI 对话]]
   - [[#which-key-按键提示][which-key 按键提示]]
   - [[#meow-模式编辑][meow 模式编辑]]
   - [[#启动-emacs-server][启动 emacs server]]
@@ -907,67 +910,74 @@ ref: https://github.com/manateelazycat/auto-save
     :defer t)
 
   (use-package orderless
-      :straight t
-      :custom (completion-styles '(orderless))
-      :config
-      ;; 拼音搜索支持
-      (defun completion--regex-pinyin (str)
-        (require 'pinyinlib)
-        (orderless-regexp (pinyinlib-build-regexp-string str)))
-      (add-to-list 'orderless-matching-styles 'completion--regex-pinyin)
-      )
+    :straight t
+    :custom (completion-styles '(orderless))
+    :config
+    ;; 拼音搜索支持
+    (defun completion--regex-pinyin (str)
+      (require 'pinyinlib)
+      (orderless-regexp (pinyinlib-build-regexp-string str)))
+    (add-to-list 'orderless-matching-styles 'completion--regex-pinyin)
+    )
 
-    (use-package vertico
-      :straight t
-      :config
-      (vertico-mode +1))
+  (use-package vertico
+    :straight t
+    :config
+    (vertico-mode +1))
 
-    (use-package marginalia
-      :after (consult)
-      :straight t
-      :config
-      (marginalia-mode +1))
+  (use-package marginalia
+    :after (consult)
+    :straight t
+    :config
+    (marginalia-mode +1))
 
-    (use-package all-the-icons-completion
-      :straight t
-      :defer t
-      :hook (marginalia-mode . all-the-icons-completion-marginalia-setup))
+  (use-package all-the-icons-completion
+    :straight t
+    :defer t
+    :hook (marginalia-mode . all-the-icons-completion-marginalia-setup))
 
-    (use-package consult
-      :straight t
-      :defer t
-      :bind (("C-s" . consult-line)
-             ("C-x b" . consult-buffer)
-             ("C-x C-b" . consult-bookmark)
-             ("C-x C-i" . consult-imenu))
-      :custom
-      (consult-preview-key nil)
-      (consult-buffer-sources '(consult--source-buffer consult--source-recent-file))
-      :config
-      (when sys-is-windows
-        (add-to-list 'process-coding-system-alist '("es" gbk . gbk))
-        (add-to-list 'process-coding-system-alist '("explorer" gbk . gbk))
-        (add-to-list 'process-coding-system-alist '("rg" utf-8 . gbk))
-        (setq consult-locate-args (encode-coding-string "es.exe -i -p -r" 'gbk)))
+  (use-package consult
+    :straight t
+    :defer t
+    :bind (("C-s" . my/consult-better-line)
+           ("C-x b" . consult-buffer)
+           ("C-x C-b" . consult-bookmark)
+           ("C-x C-i" . consult-imenu))
+    :custom
+    (consult-preview-key nil)
+    (consult-buffer-sources '(consult--source-buffer consult--source-recent-file))
+    :config
 
-      (defun consult--fd-builder (input)
-        (pcase-let* ((`(,arg . ,opts) (consult--command-split input))
-                     (`(,re . ,hl) (funcall consult--regexp-compiler
-                                            arg 'extended t)))
-          (when re
-            (list :command (append
-                            (list "fd"
-                                  "--color=never" "--full-path"
-                                  (consult--join-regexps re 'extended))
-                            opts)
-                  :highlight hl))))
+    (defun my/consult-better-line ()
+      (interactive)
+      (if buffer-file-name
+          (funcall #'consult-ripgrep (list buffer-file-name))
+        (funcall #'consult-line nil (point-min))))
 
-      (defun consult-fd (&optional dir initial)
-        (interactive "P")
-        (let* ((prompt-dir (consult--directory-prompt "Fd" dir))
-               (default-directory (cdr prompt-dir)))
-          (find-file (consult--find (car prompt-dir) #'consult--fd-builder initial))))
-      )
+    (when sys-is-windows
+      (add-to-list 'process-coding-system-alist '("es" gbk . gbk))
+      (add-to-list 'process-coding-system-alist '("explorer" gbk . gbk))
+      (add-to-list 'process-coding-system-alist '("rg" utf-8 . gbk))
+      (setq consult-locate-args (encode-coding-string "es.exe -i -p -r" 'gbk)))
+
+    (defun consult--fd-builder (input)
+      (pcase-let* ((`(,arg . ,opts) (consult--command-split input))
+                   (`(,re . ,hl) (funcall consult--regexp-compiler
+                                          arg 'extended t)))
+        (when re
+          (list :command (append
+                          (list "fd"
+                                "--color=never" "--full-path"
+                                (consult--join-regexps re 'extended))
+                          opts)
+                :highlight hl))))
+
+    (defun consult-fd (&optional dir initial)
+      (interactive "P")
+      (let* ((prompt-dir (consult--directory-prompt "Fd" dir))
+             (default-directory (cdr prompt-dir)))
+        (find-file (consult--find (car prompt-dir) #'consult--fd-builder initial))))
+    )
 #+end_src
 
 ** vundo undo 增强
@@ -1333,15 +1343,16 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :defer t)
 
   (use-package lsp-bridge
-    :straight (lsp-bridge :type git :host github :repo "xhcoding/lsp-bridge" :branch "feat/render-preproc"
-              :files ("*")
-              :build nil)
+    :load-path (lambda () (expand-file-name "ELisp/lsp-bridge" my-code-dir))
+    ;; :straight (lsp-bridge :type git :host github :repo "xhcoding/lsp-bridge" :branch "feat/render-preproc"
+    ;;                       :files ("*")
+    ;;                       :build nil)
     :defer t
     :hook ((lsp-bridge-mode . my-lsp-bridge--remap-xref))
     :init
 
     ;; 手动添加到 load-path
-    (add-to-list 'load-path (straight--repos-dir "lsp-bridge"))
+    ;; (add-to-list 'load-path (straight--repos-dir "lsp-bridge"))
 
     (setq lsp-bridge-org-babel-lang-list nil)
 
@@ -1358,7 +1369,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
                  (setq file-name (expand-file-name "OrgBabel/org-src-babel" my-code-dir))
                  (write-region (point-min) (point-max) file-name))
                (setq buffer-file-name file-name)
-               (my-enable-lsp-bridge)))
+               (my-lsp-bridge-enable)))
            (put ',intern-pre 'function-documentation
                 (format "Enable lsp-bridge-mode in the buffer of org source block (%s)."
                         (upcase ,lang)))
@@ -1447,9 +1458,9 @@ ref:https://github.com/manateelazycat/toggle-one-window
             (indent-region (region-beginning) (region-end))
           (indent-region (point-min) (point-max))))
        (lsp-bridge-mode
-        (lsp-bridge-code-format))
+        (call-interactively #'lsp-bridge-code-format))
        (t
-        (apheleia-format-buffer))))
+        (call-interactively #'apheleia-format-buffer))))
     )
 #+end_src
 
@@ -1458,11 +1469,6 @@ ref:https://github.com/manateelazycat/toggle-one-window
 *** magit
 
 #+begin_src elisp
-  (use-package libgit
-    :straight (libegit2 :type git :host github :repo "magit/libegit2" :files ("libgit.el") :recursive nil)
-    :init
-    (setq libgit--module-file (expand-file-name "libegit2.dll" my-lib-dir)))
-
   (use-package magit
     :straight (magit :type git :host github :repo "magit/magit"
                      :files ("lisp/magit"
@@ -1489,6 +1495,18 @@ ref:https://github.com/manateelazycat/toggle-one-window
   (use-package ssh-agency
     :straight t
     :after magit)
+
+  (use-package forge
+    :straight t
+    :after magit
+    :defines (forge-database-connector forge-topic-list-columns)
+    :init
+    (setq forge-database-connector 'sqlite-builtin
+          forge-topic-list-columns
+          '(("#" 5 forge-topic-list-sort-by-number (:right-align t) number nil)
+            ("Title" 60 t nil title  nil)
+            ("State" 6 t nil state nil)
+            ("Updated" 10 t nil updated nil))))
 
 #+end_src
 
@@ -1736,7 +1754,6 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (c-ts-mode-indent-offset  4)
     :config
     (defun my-cc-enable-dev()
-      (apheleia-mode +1)
       ;; treesit-forward-sexp 工作异常
       (setq forward-sexp-function nil)
       (setq-local lsp-bridge-completion-hide-characters '(";" "(" ")" "[" "]" "{" "}" "," "\""))
@@ -1748,7 +1765,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (defun my-cc--indent-style ()
       "Indent rules supported by `c-ts-mode'"
       (let* ((mode (if (derived-mode-p 'c-ts-mode) 'c 'cpp))
-             (common (alist-get 'gnu (c-ts-mode--indent-styles mode))))
+             (common (alist-get 'bsd (c-ts-mode--indent-styles mode))))
         `(
           ;; namespace
           (my-cc--treesit-match-namespace parent-bol 0)
@@ -2705,6 +2722,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
                                       (insert-file-contents path)
                                       (buffer-string))))))
     )
+
 #+end_src
 
 *** 生成 TOC
@@ -3200,6 +3218,28 @@ Wanderlust + offlineimap3 + mu
     )
 #+end_src
 
+** LaTex
+
+#+begin_src elisp
+  (use-package tex
+    :straight (auctex)
+    :defer t
+    :config
+    (add-to-list 'TeX-command-list '("XeLaTeX" "%`xelatex --synctex=1%(mode)%' %t" TeX-run-TeX nil t))
+    (add-to-list 'TeX-view-program-list '("eaf" eaf-pdf-synctex-forward-view))
+    (add-to-list 'TeX-view-program-selection '(output-pdf "eaf")))
+#+end_src
+
+** emacs-aichat AI 对话
+
+#+begin_src elisp
+  (use-package bingai
+    :load-path (lambda () (expand-file-name "Personal/emacs-aichat" my-code-dir))
+    :commands (bingai-chat)
+    :config
+    (setq bingai-file (expand-file-name "aichat.org" user-emacs-directory)))
+#+end_src
+
 ** which-key 按键提示
 
 #+begin_src elisp
@@ -3246,7 +3286,7 @@ Wanderlust + offlineimap3 + mu
      '("0" . meow-digit-argument)
      '("?" . meow-cheatsheet)
 
-     '("s" . consult-line)
+     '("s" . my/consult-better-line)
      '("b" . consult-buffer)
      '("r" . consult-ripgrep)
 

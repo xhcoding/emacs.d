@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: fa
+# key: fa
+# --
+for (const auto& ${1:i} : ${2:nums}) {
+    $0
+}

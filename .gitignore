@@ -23,3 +23,6 @@ org-roam.db
 /popweb
 /eshell
 /dictionary-overlay-data
+/cmake-tools
+aichat*
+forge-database.sqlite

@@ -98,6 +98,7 @@
   - [[#ts-fold-基于-treesit-的代码折叠][ts-fold 基于 treesit 的代码折叠]]
   - [[#elisp-配置][elisp 配置]]
   - [[#c-开发配置][C++ 开发配置]]
+    - [[#citre][citre]]
     - [[#cmake-ts-mode-设置][cmake-ts-mode 设置]]
     - [[#c-ts-mode-设置][c-ts-mode 设置]]
     - [[#导入-vs-环境变量][导入 VS 环境变量]]
@@ -858,6 +859,10 @@ ref: https://github.com/manateelazycat/auto-save
             rustic-cargo-run-mode
             lsp-bridge-ref-mode
             "^\\*eshell.*\\*$" eshell-mode
+            ;; emacs-aichat
+            "^\\*?[aA]ichat.*\\*$"
+
+            "^\\*xref*\\*$"
             ))
     :config
 
@@ -1734,15 +1739,20 @@ ref:https://github.com/manateelazycat/toggle-one-window
 #+end_src
 
 ** C++ 开发配置
+*** citre
+
+#+begin_src elisp
+  (use-package citre
+    :straight t
+    :defer t)
+#+end_src
+
 *** cmake-ts-mode 设置
 
 #+begin_src emacs-lisp
   (use-package cmake-ts-mode
     :mode "CMakeLists.txt\\'"
     :hook (cmake-ts-mode . my-lsp-bridge-enable))
-
-  (use-package async-await
-    :straight t)
 #+end_src
 
 *** c-ts-mode 设置
@@ -1757,7 +1767,14 @@ ref:https://github.com/manateelazycat/toggle-one-window
       ;; treesit-forward-sexp 工作异常
       (setq forward-sexp-function nil)
       (setq-local lsp-bridge-completion-hide-characters '(";" "(" ")" "[" "]" "{" "}" "," "\""))
-      (my-lsp-bridge-enable))
+      (let ((project-root (nth 2 (project-current))))
+        (if (not project-root)
+            (my-lsp-bridge-enable))
+        (if (file-exists-p 
+               (expand-file-name "build/compile_commands.json" project-root))
+            (my-lsp-bridge-enable)
+          (require 'citre-lang-c)
+          (citre-mode +1))))
 
     (defun my-cc--treesit-match-namespace (node parent bol &rest _)
       (string= (treesit-node-type (treesit-node-parent parent)) "namespace_definition"))
@@ -1765,7 +1782,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (defun my-cc--indent-style ()
       "Indent rules supported by `c-ts-mode'"
       (let* ((mode (if (derived-mode-p 'c-ts-mode) 'c 'cpp))
-             (common (alist-get 'bsd (c-ts-mode--indent-styles mode))))
+             (common (alist-get 'gnu (c-ts-mode--indent-styles mode))))
         `(
           ;; namespace
           (my-cc--treesit-match-namespace parent-bol 0)
@@ -2272,7 +2289,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
     :custom
     (dash-docs-enable-debugging nil)
-    (dash-docs-browser-func 'eww-browse-url)
+    (dash-docs-browser-func 'eaf-open-browser)
     :config
     (when sys-is-windows
       (setq dash-docs-docsets-path (expand-file-name "persist/zeal/docsets" (getenv "SCOOP"))))
@@ -2401,7 +2418,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
   (use-package olivetti
     :straight t
     :defer t
-    :hook (org-mode markdown-mode elfeed-show-mode eww-mode)
+    :hook (prog-mode text-mode outline special-mode)
     )
 #+end_src
 
@@ -2991,7 +3008,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
                           :files ("*")
                           :build nil)
     :defer t
-    :commands (eaf-open eaf-open-browser eaf-open-this-buffer eaf-open-git)
+    :commands (eaf-open eaf-open-browser eaf-open-this-buffer eaf-open-pdf-from-history)
     :init
     ;; 手动添加到 load-path
     (add-to-list 'load-path (straight--repos-dir "emacs-application-framework"))
@@ -2999,10 +3016,14 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (setq eaf-proxy-type "http")
     (setq eaf-proxy-host "127.0.0.1")
     (setq eaf-proxy-port "51837")
-  
+
     (setq eaf-webengine-default-zoom 2.5)
     (when sys-is-windows
-      (setq eaf-chrome-bookmark-file (expand-file-name "~/AppData/Local/Microsoft/Edge/User Data/Default/Bookmarks")))
+      (setq eaf-chrome-bookmark-file (expand-file-name "~/AppData/Local/Microsoft/Edge/User Data/Default/Bookmarks"))
+
+      (defun my-eaf--enable-python-utf8-mode (environment)
+        (append (list "PYTHONUTF8=1") environment))
+          (advice-add 'eaf--build-process-environment :filter-return #'my-eaf--enable-python-utf8-mode))
     (require 'eaf-browser)
     (require 'eaf-pdf-viewer)
     (require 'eaf-org-previewer)
@@ -3233,11 +3254,15 @@ Wanderlust + offlineimap3 + mu
 ** emacs-aichat AI 对话
 
 #+begin_src elisp
-  (use-package bingai
+  (use-package async-await
+    :straight t
+    :defer t)
+
+  (use-package aichat
     :load-path (lambda () (expand-file-name "Personal/emacs-aichat" my-code-dir))
-    :commands (bingai-chat)
+    :commands (aichat-bingai-chat aichat-bingai-assistant aichat-bingai-replace-or-insert aichat-openai-translate-to-english)
     :config
-    (setq bingai-file (expand-file-name "aichat.org" user-emacs-directory)))
+    (setq aichat-openai-proxy "localhost:51837"))
 #+end_src
 
 ** which-key 按键提示

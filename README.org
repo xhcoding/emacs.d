@@ -60,7 +60,6 @@
   - [[#auto-save-自动保存][auto-save 自动保存]]
   - [[#rime-智能的中文输入法][rime 智能的中文输入法]]
   - [[#字体和主题][字体和主题]]
-  - [[#all-the-icons-图标字体][all-the-icons 图标字体]]
   - [[#ligature-连字体][ligature 连字体]]
   - [[#awesome-tray-底部信息显示][awesome-tray 底部信息显示]]
   - [[#sort-tab-快速切换到其它-buffer][sort-tab 快速切换到其它 buffer]]
@@ -677,14 +676,6 @@ ref: https://github.com/manateelazycat/auto-save
     )
 #+end_src
 
-** all-the-icons 图标字体
-
-#+begin_src elisp
-    (use-package all-the-icons
-      :straight t)
-
-#+end_src
-
 ** ligature 连字体
 
 #+begin_src elisp
@@ -931,15 +922,11 @@ ref: https://github.com/manateelazycat/auto-save
     (vertico-mode +1))
 
   (use-package marginalia
-    :after (consult)
+    :after (vertico)
     :straight t
     :config
     (marginalia-mode +1))
 
-  (use-package all-the-icons-completion
-    :straight t
-    :defer t
-    :hook (marginalia-mode . all-the-icons-completion-marginalia-setup))
 
   (use-package consult
     :straight t
@@ -1462,11 +1449,28 @@ ref:https://github.com/manateelazycat/toggle-one-window
         (if (region-active-p)
             (indent-region (region-beginning) (region-end))
           (indent-region (point-min) (point-max))))
-       (lsp-bridge-mode
+       ((and (boundp 'lsp-bridge-mode) lsp-bridge-mode)
         (call-interactively #'lsp-bridge-code-format))
        (t
         (call-interactively #'apheleia-format-buffer))))
     )
+#+end_src
+
+** wuco 拼写检查
+
+#+begin_src elisp
+  (use-package ispell
+    :config
+    (setq ispell-program-name "hunspell"
+          ispell-dictionary "en_US"
+          ispell-local-dictionary-alist '(("en_US" "[[:alpha:]]" "[^[:alpha:]]" "[']" nil ("-d" "en_US") nil utf-8))
+          ispell-hunspell-dict-paths-alist `(("en_US" ,(expand-file-name "dict/en_US.aff" my-etc-dir)))
+          ispell-hunspell-dictionary-alist '(("en_US"))))
+
+  (use-package wucuo
+    :straight t
+    :defer t)
+
 #+end_src
 
 ** git 配置
@@ -2418,7 +2422,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
   (use-package olivetti
     :straight t
     :defer t
-    :hook (prog-mode text-mode outline special-mode)
+    :hook (prog-mode text-mode outline-mode special-mode elfeed-show-mode)
     )
 #+end_src
 
@@ -3041,7 +3045,8 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :init
     (let ((repo (straight--repos-dir "popweb")))
       (add-to-list 'load-path repo)
-      (add-to-list 'load-path (expand-file-name "extension/dict" repo)))
+      (add-to-list 'load-path (expand-file-name "extension/dict" repo))
+      )
     :config
     (require 'popweb-dict)
 
@@ -3259,10 +3264,28 @@ Wanderlust + offlineimap3 + mu
     :defer t)
 
   (use-package aichat
+    :demand t
     :load-path (lambda () (expand-file-name "Personal/emacs-aichat" my-code-dir))
-    :commands (aichat-bingai-chat aichat-bingai-assistant aichat-bingai-replace-or-insert aichat-openai-translate-to-english)
     :config
-    (setq aichat-openai-proxy "localhost:51837"))
+    (setq aichat-bingai-proxy "localhost:51837")
+    (aichat-toggle-debug)
+    (aichat-bingai-prompt-create "translator"
+                                 :input-prompt "请翻译: "
+                                 :text-format "我想让你充当翻译员，我会用任何语言与你交谈，你会检测我说的的语言，如果我说的是中文，你就翻译成英文；如果我说的不是中文，你就翻译成英文。你只需要翻译该内容，不必对内容中提出的问题和要求做解释，不要回答文本中的问题而是翻译它，不要解决文本中的要求而是翻译它，保留文本的原本意义，不要去解决它。你的回答里只需要翻译后的内容，不要有任何其它词，只能是翻译后的内容。我的第一句话是：\n%s"
+                                 :chat t
+                                 :assistant t
+                                 :replace-or-insert t)
+
+    (aichat-bingai-prompt-create "coder"
+                                 :input-prompt "代码: "
+                                 :text-format "我想让你充当计算机教授，请向我解释下面这段代码的作用:\n%s"
+                                 :chat t)
+
+      (aichat-bingai-prompt-create "refactor"
+                                 :input-prompt "代码: "
+                                 :text-format "我想让你充当计算机教授，请帮我重构下面这段代码，重构后的代码性能要更好，可读性要更高，如果必要的话，可以加一些注释。你的回答里只需要返回重构后的代码，不要有其它解释，只能是重构后的代码:\n%s"
+                                 :replace-or-insert t)
+    )
 #+end_src
 
 ** which-key 按键提示
@@ -3415,4 +3438,10 @@ Wanderlust + offlineimap3 + mu
     (require 'wl)
     (wl))
 
+#+end_src
+
+** 载入私有配置文件
+
+#+begin_src elisp
+  (load (expand-file-name "config.el" my-private-dir))
 #+end_src

@@ -1,0 +1,10 @@
+# -*- mode: snippet -*-
+# name: fn
+# key: fn
+# --
+\begin{equation}
+f(n) = \left\\{ \begin{array}{ll}
+$1 & \textrm{$2} \\\
+$0
+\end{array} \right.
+\end{equation}

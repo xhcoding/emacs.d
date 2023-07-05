@@ -4,7 +4,7 @@
     "hash": "52d382a2fec90219af111162903ef84489b3166d4d55d31439308fab7a62c02a",
     "installer": {
 	"script": [
-	    "Copy-Item -Path D:/emacs-build/pkg/master-x86_64-full/* -Destination $dir -Recurse",
+	    "Copy-Item -Path D:/Code/Github/emacs-build/pkg/master-x86_64-full/* -Destination $dir -Recurse",
 	    "Copy-Item -Path ~/.emacs.d/lib/librime.dll -Destination $dir/bin/",
 	]
     },

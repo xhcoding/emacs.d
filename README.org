@@ -950,7 +950,7 @@ ref: https://github.com/manateelazycat/auto-save
         (funcall #'consult-line nil (point-min))))
 
     (when sys-is-windows
-      (add-to-list 'process-coding-system-alist '("es" gbk . gbk))
+      (add-to-list 'process-coding-system-alist '("es.exe" gbk . gbk))
       (add-to-list 'process-coding-system-alist '("explorer" gbk . gbk))
       (add-to-list 'process-coding-system-alist '("rg" utf-8 . gbk))
       (setq consult-locate-args (encode-coding-string "es.exe -i -p -r" 'gbk)))
@@ -2737,6 +2737,8 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :straight t
     :defer t
     :hook (org-mode . my--set-org-html-head-extra)
+    :custom
+    (org-export-with-broken-links t)
     :config
     (defun my--set-org-html-head-extra ()
       "Set org html head extra"
@@ -2746,6 +2748,10 @@ ref:https://github.com/manateelazycat/toggle-one-window
                                       (insert-file-contents path)
                                       (buffer-string))))))
     )
+
+  (use-package htmlize
+    :straight t
+    :after org)
 
 #+end_src
 

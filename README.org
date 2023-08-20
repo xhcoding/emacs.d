@@ -493,12 +493,14 @@ from: https://github.com/doomemacs/doomemacs/blob/master/lisp/doom-start.el
 
 *** 设置编码
 
-默认使用 utf-8 ，在 windows 文件名编码使用 gbk ，不然打不开中文文件
+默认使用 utf-8
 #+begin_src elisp
   (prefer-coding-system 'utf-8)
-  (when sys-is-windows
-    (setq file-name-coding-system 'gbk))
 #+end_src
+
+我使用的 emacs 打了 SHELL 命令支持 UTF8 参数的补丁，不需要其它编码设置
+
+补丁地址：https://github.com/xhcoding/emacs/commit/d809f96a03f58f07cd8419d47798359f799ac0de
 
 *** 设置 frame 标题
 
@@ -950,10 +952,18 @@ ref: https://github.com/manateelazycat/auto-save
         (funcall #'consult-line nil (point-min))))
 
     (when sys-is-windows
-      (add-to-list 'process-coding-system-alist '("es.exe" gbk . gbk))
-      (add-to-list 'process-coding-system-alist '("explorer" gbk . gbk))
-      (add-to-list 'process-coding-system-alist '("rg" utf-8 . gbk))
-      (setq consult-locate-args (encode-coding-string "es.exe -i -p -r" 'gbk)))
+
+      ;; 让 es 命令搜索 UTF8 文件名时返回 UTF8 编码的结果
+      (setq consult-locate-args '("cmdproxy.exe" "-c" "\"es.exe -i -p -r %s\""))
+      (defun consult--locate-builder (input)
+        "Build command line from INPUT."
+        (pcase-let ((`(,arg . ,opts) (consult--command-split input)))
+          (unless (string-blank-p arg)
+            (cons (mapcar (lambda (e) (format e arg opts))
+                        (consult--build-args consult-locate-args))
+                  (cdr (consult--default-regexp-compiler input 'basic t))))))
+
+      )
 
     (defun consult--fd-builder (input)
       (pcase-let* ((`(,arg . ,opts) (consult--command-split input))
@@ -1320,11 +1330,12 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package color-rg
-    :straight (color-rg :type git :host github :repo "manateelazycat/color-rg")
+    :straight (color-rg :type git :host github :repo "xhcoding/color-rg")
     :defer t
     :commands (color-rg-search-symbol-in-project color-rg-search-input-in-project)
     :custom
     (color-rg-search-no-ignore-file nil)
+    (color-rg-search-ignore-rules "")
     :config
     (add-to-list 'meow-mode-state-list '(color-rg-mode . motion)))
 #+end_src
@@ -1495,7 +1506,19 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :bind ("C-x g" . magit-status)
     :config
     (when sys-is-windows
-      (setenv "GIT_ASKPASS" "git-gui--askpass")))
+      (setenv "GIT_ASKPASS" "git-gui--askpass")
+
+      ;; 不要将命令行用 w32-ansi-code-page 编码，用的 emacs 支持 utf8 编码
+      (defun magit-process-git-arguments (args)
+        "Prepare ARGS for a function that invokes Git.
+
+    Magit has many specialized functions for running Git; they all
+    pass arguments through this function before handing them to Git,
+    to do the following.
+
+    ,* Flatten ARGS, removing nil arguments.
+    ,* Prepend `magit-git-global-arguments' to ARGS."
+        (append magit-git-global-arguments (flatten-tree args)))))
 
   (use-package magit-todos
     :straight t
@@ -3164,9 +3187,6 @@ Wanderlust + offlineimap3 + mu
      :parser 'my--elmo-search-parse-filename-list)
 
     (setq elmo-search-default-engine 'mu-msys)
-
-    ;; mu 的输入要用 gbk 编码，不然无法输入中文
-    (add-to-list 'process-coding-system-alist '("mu" utf-8 . gbk))
 
     ;; mime 附件保存目录
     (setq mime-save-directory (expand-file-name "mails" my-archives-dir))

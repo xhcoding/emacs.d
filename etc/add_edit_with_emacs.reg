@@ -5,50 +5,50 @@ Windows Registry Editor Version 5.00
 ;; Open file in existing frame
 [HKEY_CURRENT_USER\Software\Classes\*\shell\emacsopen1sameframe]
 @="&Emacs: Edit in existing window"
-"icon"="C:\\Users\\xhcoding\\scoop\\apps\\emacs-m\\current\\bin\\emacsclientw.exe"
+"icon"="D:\\Applications\\Scoop\\apps\\emacs-m\\current\\bin\\emacsclientw.exe"
 [HKEY_CURRENT_USER\Software\Classes\*\shell\emacsopen1sameframe\command]
-@="C:\\Users\\xhcoding\\scoop\\apps\\emacs-m\\current\\bin\\emacsclientw.exe -n --alternate-editor=\"C:\\Users\\xhcoding\\scoop\\apps\\emacs-m\\current\\bin\\runemacs.exe\" -n \"%1\""
+@="D:\\Applications\\Scoop\\apps\\emacs-m\\current\\bin\\emacsclientw.exe -n --alternate-editor=\"D:\\Applications\\Scoop\\apps\\emacs-m\\current\\bin\\runemacs.exe\" -n \"%1\""
 
 ;; Open file in new frame
 [HKEY_CURRENT_USER\Software\Classes\*\shell\emacsopen2newframe]
 @="&Emacs: Edit in new window"
-"icon"="C:\\Users\\xhcoding\\scoop\\apps\\emacs-m\\current\\bin\\emacsclientw.exe"
+"icon"="D:\\Applications\\Scoop\\apps\\emacs-m\\current\\bin\\emacsclientw.exe"
 [HKEY_CURRENT_USER\Software\Classes\*\shell\emacsopen2newframe\command]
-@="C:\\Users\\xhcoding\\scoop\\apps\\emacs-m\\current\\bin\\emacsclientw.exe -n --alternate-editor=\"C:\\Users\\xhcoding\\scoop\\apps\\emacs-m\\current\\bin\\runemacs.exe\" -c -n \"%1\""
+@="D:\\Applications\\Scoop\\apps\\emacs-m\\current\\bin\\emacsclientw.exe -n --alternate-editor=\"D:\\Applications\\Scoop\\apps\\emacs-m\\current\\bin\\runemacs.exe\" -c -n \"%1\""
 
 ;; Dired for desktop background
 [HKEY_CURRENT_USER\Software\Classes\DesktopBackground\shell\emacsopensameframe]
 @="&Emacs: Open in dired"
-"icon"="C:\\Users\\xhcoding\\scoop\\apps\\emacs-m\\current\\bin\\emacsclientw.exe"
+"icon"="D:\\Applications\\Scoop\\apps\\emacs-m\\current\\bin\\emacsclientw.exe"
 [HKEY_CURRENT_USER\Software\Classes\DesktopBackground\shell\emacsopensameframe\command]
-@="C:\\Users\\xhcoding\\scoop\\apps\\emacs-m\\current\\bin\\emacsclientw.exe  -n --alternate-editor=\"C:\\Users\\xhcoding\\scoop\\apps\\emacs-m\\current\\bin\\runemacs.exe\" -n \"%v\""
+@="D:\\Applications\\Scoop\\apps\\emacs-m\\current\\bin\\emacsclientw.exe  -n --alternate-editor=\"D:\\Applications\\Scoop\\apps\\emacs-m\\current\\bin\\runemacs.exe\" -n \"%v\""
 
 ;; Dired for directory
 [HKEY_CURRENT_USER\Software\Classes\Directory\shell\emacsopensameframe]
 @="&Emacs: Open in dired"
-"icon"="C:\\Users\\xhcoding\\scoop\\apps\\emacs-m\\current\\bin\\emacsclientw.exe"
+"icon"="D:\\Applications\\Scoop\\apps\\emacs-m\\current\\bin\\emacsclientw.exe"
 [HKEY_CURRENT_USER\Software\Classes\Directory\shell\emacsopensameframe\command]
-@="C:\\Users\\xhcoding\\scoop\\apps\\emacs-m\\current\\bin\\emacsclientw.exe  -n --alternate-editor=\"C:\\Users\\xhcoding\\scoop\\apps\\emacs-m\\current\\bin\\runemacs.exe\" -n \"%V\""
+@="D:\\Applications\\Scoop\\apps\\emacs-m\\current\\bin\\emacsclientw.exe  -n --alternate-editor=\"D:\\Applications\\Scoop\\apps\\emacs-m\\current\\bin\\runemacs.exe\" -n \"%V\""
 
 ;; Dired for directory background
 [HKEY_CURRENT_USER\Software\Classes\Directory\Background\shell\emacsopensameframe]
 @="&Emacs: Open in dired"
-"icon"="C:\\Users\\xhcoding\\scoop\\apps\\emacs-m\\current\\bin\\emacsclientw.exe"
+"icon"="D:\\Applications\\Scoop\\apps\\emacs-m\\current\\bin\\emacsclientw.exe"
 [HKEY_CURRENT_USER\Software\Classes\Directory\Background\shell\emacsopensameframe\command]
-@="C:\\Users\\xhcoding\\scoop\\apps\\emacs-m\\current\\bin\\emacsclientw.exe  -n --alternate-editor=\"C:\\Users\\xhcoding\\scoop\\apps\\emacs-m\\current\\bin\\runemacs.exe\" -n \"%V\""
+@="D:\\Applications\\Scoop\\apps\\emacs-m\\current\\bin\\emacsclientw.exe  -n --alternate-editor=\"D:\\Applications\\Scoop\\apps\\emacs-m\\current\\bin\\runemacs.exe\" -n \"%V\""
 
 ;; Dired for drive background
 [HKEY_CURRENT_USER\Software\Classes\Drive\Background\shell\EmacsOpenDirSameFrame]
 @="&Emacs: Open in dired"
-"icon"="C:\\Users\\xhcoding\\scoop\\apps\\emacs-m\\current\\bin\\emacsclientw.exe"
+"icon"="D:\\Applications\\Scoop\\apps\\emacs-m\\current\\bin\\emacsclientw.exe"
 [HKEY_CURRENT_USER\Software\Classes\Drive\Background\shell\EmacsOpenDirSameFrame\command]
 ;; as drives haven't space inside their name don't use quoting
-@="C:\\Users\\xhcoding\\scoop\\apps\\emacs-m\\current\\bin\\emacsclientw.exe  -n --alternate-editor=\"C:\\Users\\xhcoding\\scoop\\apps\\emacs-m\\current\\bin\\runemacs.exe\" -n %L"
+@="D:\\Applications\\Scoop\\apps\\emacs-m\\current\\bin\\emacsclientw.exe  -n --alternate-editor=\"D:\\Applications\\Scoop\\apps\\emacs-m\\current\\bin\\runemacs.exe\" -n %L"
 
 ;; Dired for drive
 [HKEY_CURRENT_USER\Software\Classes\Drive\shell\EmacsOpenDirSameFrame]
 @="&Emacs: Open in dired"
-"icon"="C:\\Users\\xhcoding\\scoop\\apps\\emacs-m\\current\\bin\\emacsclientw.exe"
+"icon"="D:\\Applications\\Scoop\\apps\\emacs-m\\current\\bin\\emacsclientw.exe"
 [HKEY_CURRENT_USER\Software\Classes\Drive\shell\EmacsOpenDirSameFrame\command]
 ;; as drives haven't space inside their name don't use quoting
-@="C:\\Users\\xhcoding\\scoop\\apps\\emacs-m\\current\\bin\\emacsclientw.exe  -n --alternate-editor=\"C:\\Users\\xhcoding\\scoop\\apps\\emacs-m\\current\\bin\\runemacs.exe\" -n %L"
+@="D:\\Applications\\Scoop\\apps\\emacs-m\\current\\bin\\emacsclientw.exe  -n --alternate-editor=\"D:\\Applications\\Scoop\\apps\\emacs-m\\current\\bin\\runemacs.exe\" -n %L"

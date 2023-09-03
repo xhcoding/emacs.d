@@ -803,7 +803,7 @@ ref: https://github.com/manateelazycat/auto-save
          (propertize title 'face face))))
     :config
     (pretty-hydra-define my-base-hydra ()
-      ("" 
+      (""
        (("h" backward-char "Backward")
         ("j" next-line "Next")
         ("k" previous-line "Previous")
@@ -857,6 +857,7 @@ ref: https://github.com/manateelazycat/auto-save
             "^\\*?[aA]ichat.*\\*$"
 
             "^\\*xref*\\*$"
+            "^\\*compilation*\\*$"
             ))
     :config
 
@@ -934,7 +935,7 @@ ref: https://github.com/manateelazycat/auto-save
   (use-package consult
     :straight t
     :defer t
-    :bind (("C-s" . my/consult-better-line)
+    :bind (("C-s" . consult-line)
            ("C-x b" . consult-buffer)
            ("C-x C-b" . consult-bookmark)
            ("C-x C-i" . consult-imenu))
@@ -943,36 +944,11 @@ ref: https://github.com/manateelazycat/auto-save
     (consult-buffer-sources '(consult--source-buffer consult--source-recent-file))
     :config
 
-    (defun my/consult-better-line ()
-      (interactive)
-      (if buffer-file-name
-          (funcall #'consult-ripgrep (list buffer-file-name))
-        (funcall #'consult-line nil (point-min))))
-
     (when sys-is-windows
       (add-to-list 'process-coding-system-alist '("es.exe" gbk . gbk))
       (add-to-list 'process-coding-system-alist '("explorer" gbk . gbk))
       (add-to-list 'process-coding-system-alist '("rg" utf-8 . gbk))
-      (setq consult-locate-args (encode-coding-string "es.exe -i -p -r" 'gbk)))
-
-    (defun consult--fd-builder (input)
-      (pcase-let* ((`(,arg . ,opts) (consult--command-split input))
-                   (`(,re . ,hl) (funcall consult--regexp-compiler
-                                          arg 'extended t)))
-        (when re
-          (list :command (append
-                          (list "fd"
-                                "--color=never" "--full-path"
-                                (consult--join-regexps re 'extended))
-                          opts)
-                :highlight hl))))
-
-    (defun consult-fd (&optional dir initial)
-      (interactive "P")
-      (let* ((prompt-dir (consult--directory-prompt "Fd" dir))
-             (default-directory (cdr prompt-dir)))
-        (find-file (consult--find (car prompt-dir) #'consult--fd-builder initial))))
-    )
+      (setq consult-locate-args (encode-coding-string "es.exe -i -p -r" 'gbk))))
 #+end_src
 
 ** vundo undo 增强
@@ -1097,31 +1073,100 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+end_src
 
-** project.el 工程管理
+** projectile.el 工程管理
 
 #+begin_src elisp
-  (use-package project
-    :defer t
+  ;; 获取开发机的 ip
+  (defvar my-remote-machine-ip nil)
+  (defun my-get-remote-machine-ip ()
+    ""
+    (make-process
+     :name "remote machine ip"
+     :command '("ssh" "xhcoding@192.168.1.2" "ip addr show eth0")
+     :filter (lambda (_ data)
+               (when (string-match "inet \\(.*\\)/" data)
+                 (setq my-remote-machine-ip
+                       (substring data (match-beginning 1) (match-end 1))))))
+    nil)
+
+  (my-get-remote-machine-ip)
+
+#+end_src
+
+#+begin_src elisp
+  (use-package projectile
+    :straight t
+    :bind (("<f6>" . projectile-compile-project)
+           ("<f5>" . projectile-run-project))
     :custom
-    (project-switch-commands #'project-find-file)
+    (projectile-indexing-method 'alien)
     :config
-    (defun my--project-files-in-directory (dir)
-      "Use `fd' to list files in DIR."
-      (let* ((default-directory dir)
-             (localdir (file-local-name (expand-file-name dir)))
-             (command (format "fd . --color=never --type f -0 -H -E .git --path-separator=/ %s" localdir)))
-        (project--remote-file-names
-         (sort (split-string (shell-command-to-string command) "\0" t)
-               #'string<))))
+    (projectile-mode +1)
+    (define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)
 
-    ;; (head vc) 表示对于所有 vc 项目
-    (cl-defmethod project-files ((project (head vc)) &optional dirs)
-      "Override `project-files' to use `fd' in vc projects."
-      (mapcan #'my--project-files-in-directory
-              (or dirs (list (project-root project)))))
-  )
+    (defun my-project-root()
+      "Return project-root of current project."
+      (projectile-project-root))
+
+    ;; 生成 rsync 同步命令当前工程命令字符串
+    (defun my-rsync-command()
+      "Rsync command."
+      (when-let* ((name (project-name (project-current)))
+                  (root (expand-file-name (my-project-root)))
+                  (cygdrive-root (replace-regexp-in-string "\\([cd]\\):" "/cygdrive/\\1" root)))
+        (format "rsync -avPz --password-file=/cygdrive/c/Users/xhcoding/rsyncd.secrets --exclude-from=%srsync_exclude.txt %s* xhcoding@%s::%s" cygdrive-root cygdrive-root (or my-remote-machine-ip "192.168.1.2") name)))
+
+    ;; 生成使用 ssh 远程在当前工作工程目录下执行命令的字符串
+    (defun my-ssh-shell-command (command)
+      "Shell command with ssh."
+      (when-let ((name (project-name (project-current))))
+        (format "ssh xhcoding@192.168.1.2 \"cd /home/xhcoding/Code/%s ; %s\"" name command)))
+
+    ;; 如果包括 rsync_exclude.txt ，远程执行编译命令
+    (defun my*wrap-compile-command (command)
+      ""
+      (let ((root (my-project-root)))
+        (if (and (not (string-prefix-p "rsync" command))
+                 root
+                 (file-exists-p (expand-file-name "rsync_exclude.txt" root)))
+            (concat (my-rsync-command) " && " (my-ssh-shell-command command))
+          command)))
+
+    (advice-add 'projectile-compilation-command :filter-return #'my*wrap-compile-command)
+
+      ;; 如果包括 rsync_exclude.txt ，远程执行 run 命令
+    (defun my*wrap-run-command (command)
+      ""
+      (let ((root (my-project-root)))
+        (if (and (not (string-prefix-p "ssh" command))
+                 root
+                 (file-exists-p (expand-file-name "rsync_exclude.txt" root)))
+            (my-ssh-shell-command command)
+          command)))
+    (advice-add 'projectile-run-command :filter-return #'my*wrap-run-command)
 
 
+    ;; 注册工程
+    (projectile-register-project-type 'xmake '("xmake.lua")
+                                      :project-file "xmake.lua"
+                                      :compile "xmake"
+                                      :test "xmake run"
+                                      :run "xmake run")
+    )
+
+
+
+#+end_src
+
+** compile 增强
+
+#+begin_src elisp
+  (use-package fancy-compilation
+    :straight t
+    :after compile
+    :config
+    (setq fancy-compilation-override-colors nil)
+    (fancy-compilation-mode +1))
 #+end_src
 
 ** eshell 增强
@@ -1129,7 +1174,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 *** eshell 基本配置
 #+begin_src elisp
   (use-package eshell
-    :bind (("<f5>" . my/eshell))
+    :defer t
     :custom
     (eshell-kill-processes-on-exit t)
     :config
@@ -1223,7 +1268,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
           (make-directory dir t))
         (with-temp-file my-eshell-z-file-name
           (let ((result (list)))
-            (maphash #'(lambda (key value) 
+            (maphash #'(lambda (key value)
                          (when (> value 0)
                            (add-to-list 'result (list key (- value 0.1))))
                          )
@@ -1278,7 +1323,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
       (let* ((project-root (nth 2 (project-current))))
         (unless project-root
           (setq project-root default-directory))
-        (when-let* ((result (eshell-command-result 
+        (when-let* ((result (eshell-command-result
                             (concat "fd --type directory --absolute-path " (car args) " " project-root)))
                     (paths (split-string result "\n" t)))
           (if (= (length paths) 1)
@@ -1343,7 +1388,10 @@ ref:https://github.com/manateelazycat/toggle-one-window
     ;;                       :files ("*")
     ;;                       :build nil)
     :defer t
-    :hook ((lsp-bridge-mode . my-lsp-bridge--remap-xref))
+    :bind (:map lsp-bridge-mode-map
+                ([remap xref-find-definitions] . lsp-bridge-find-def)
+                ([remap xref-find-references] . lsp-bridge-find-references)
+                ([remap xref-go-back] . lsp-bridge-find-def-return))
     :init
 
     ;; 手动添加到 load-path
@@ -1364,7 +1412,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
                  (setq file-name (expand-file-name "OrgBabel/org-src-babel" my-code-dir))
                  (write-region (point-min) (point-max) file-name))
                (setq buffer-file-name file-name)
-               (my-lsp-bridge-enable)))
+               (my-enable-lsp-bridge)))
            (put ',intern-pre 'function-documentation
                 (format "Enable lsp-bridge-mode in the buffer of org source block (%s)."
                         (upcase ,lang)))
@@ -1393,29 +1441,17 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (setq acm-enable-tabnine nil
           acm-enable-quick-access t
           lsp-bridge-enable-hover-diagnostic t)
-
-    (defun my-lsp-bridge--remap-xref()
-      "Remap xref key bind when lsp-bridge-mode enable."
-      (unless (eq major-mode 'emacs-lisp-mode)
-        (local-set-key (kbd "M-.") #'lsp-bridge-find-def)
-        (local-set-key (kbd "M-?") #'lsp-bridge-find-references)
-        (local-set-key (kbd "M-,") #'lsp-bridge-find-def-return)
-        ))
     )
 #+end_src
 
 启动 lsp-bridge
 
 #+begin_src elisp
-  (defun my-lsp-bridge-enable()
+  (defun my-enable-lsp-bridge()
     "Enable lsp bridge mode."
     (require 'yasnippet)
     (yas-minor-mode)
     (require 'lsp-bridge)
-    ;; (when-let* ((project (project-current))
-    ;;            (project-root (nth 2 project)))
-    ;;   (setq-local lsp-bridge-user-langserver-dir project-root
-    ;;               lsp-bridge-user-multiserver-dir project-root))
     (lsp-bridge-mode))
 
 
@@ -1728,7 +1764,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :bind ("M-z" . ts-fold-toggle)
     :config
     ;; elisp support
-    (add-to-list 'ts-fold-range-alist '(emacs-lisp-mode 
+    (add-to-list 'ts-fold-range-alist '(emacs-lisp-mode
                                         (function_definition . ts-fold-range-seq)
                                         (list . ts-fold-range-seq)
                                         (special_form . ts-fold-range-seq))))
@@ -1741,7 +1777,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :hook ((emacs-lisp-mode . my-enable-elisp-dev))
     :config
     (defun my-enable-elisp-dev ()
-      (my-lsp-bridge-enable)
+      (my-enable-lsp-bridge)
       (treesit-parser-create 'elisp)))
 #+end_src
 
@@ -1759,7 +1795,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 #+begin_src emacs-lisp
   (use-package cmake-ts-mode
     :mode "CMakeLists.txt\\'"
-    :hook (cmake-ts-mode . my-lsp-bridge-enable))
+    :hook (cmake-ts-mode . my-enable-lsp-bridge))
 #+end_src
 
 *** c-ts-mode 设置
@@ -1772,16 +1808,9 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :config
     (defun my-cc-enable-dev()
       ;; treesit-forward-sexp 工作异常
-      (setq forward-sexp-function nil)
+      ;; (setq forward-sexp-function nil)
       (setq-local lsp-bridge-completion-hide-characters '(";" "(" ")" "[" "]" "{" "}" "," "\""))
-      (let ((project-root (nth 2 (project-current))))
-        (if (not project-root)
-            (my-lsp-bridge-enable))
-        (if (file-exists-p 
-               (expand-file-name "build/compile_commands.json" project-root))
-            (my-lsp-bridge-enable)
-          (require 'citre-lang-c)
-          (citre-mode +1))))
+      (my-enable-lsp-bridge))
 
     (defun my-cc--treesit-match-namespace (node parent bol &rest _)
       (string= (treesit-node-type (treesit-node-parent parent)) "namespace_definition"))
@@ -1882,7 +1911,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
         (if (not (gethash "INCLUDE" vars))
             nil
           (maphash #'(lambda (key value)
-                       (setenv key value)) 
+                       (setenv key value))
                    vars)))))
 #+end_src
 
@@ -1891,14 +1920,14 @@ ref:https://github.com/manateelazycat/toggle-one-window
 #+begin_src elisp
   (use-package rust-ts-mode
     :mode "\\.rs\\'"
-    :hook (rust-ts-mode . my-lsp-bridge-enable))
+    :hook (rust-ts-mode . my-enable-lsp-bridge))
 #+end_src
 
 ** python 开发配置
 
 #+begin_src emacs-lisp
   (use-package python
-    :hook (python-ts-mode . my-lsp-bridge-enable)
+    :hook (python-ts-mode . my-enable-lsp-bridge)
     :config
     (require 'dap-python)
     (setq dap-python-debugger 'debugpy))
@@ -1916,13 +1945,13 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
       (require 'lsp-bridge-jdtls)
       (setq-local lsp-bridge-get-single-lang-server-by-project 'lsp-bridge-get-jdtls-server-by-project)
-      (my-lsp-bridge-enable))
+      (my-enable-lsp-bridge))
 
     ;； jdtls 目录
     (defconst my--java-jdtls-root-dir (expand-file-name "apps/jdtls/current" (getenv "SCOOP")))
     (defconst my--java-jdtls-conf-dir (expand-file-name "config_win" my--java-jdtls-root-dir))
     (defconst my--java-jdtls-equinox-path   (car (directory-files (expand-file-name "plugins" my--java-jdtls-root-dir) t "org.eclipse.equinox.launcher_.*\\.jar")))
-    (defconst my--java-jdtls-command 
+    (defconst my--java-jdtls-command
       `("java"
         "-Declipse.application=org.eclipse.jdt.ls.core.id1"
         "-Dosgi.bundles.defaultStartLevel=4"
@@ -1989,7 +2018,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (defun my-js-enable-dev ()
       ;; treesit-forward-sexp 工作异常
       (setq forward-sexp-function nil)
-      (my-lsp-bridge-enable))
+      (my-enable-lsp-bridge))
     )
 #+end_src
 
@@ -1998,7 +2027,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 #+begin_src emacs-lisp
   (use-package typescript-ts-mode
     :mode "\\.ts\\'"
-    :hook (typescript-ts-base-mode . my-lsp-bridge-enable))
+    :hook (typescript-ts-base-mode . my-enable-lsp-bridge))
 #+end_src
 
 *** HTML
@@ -2007,7 +2036,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
   (use-package web-mode
     :straight t
     :mode "\\.\\(phtml\\|php\\|[gj]sp\\|as[cp]x\\|erb\\|djhtml\\|html?\\|hbs\\|ejs\\|jade\\|swig\\|tm?pl\\|vue\\)$"
-    :hook (web-mode . my-lsp-bridge-enable)
+    :hook (web-mode . my-enable-lsp-bridge)
     :custom
     (web-mode-markup-indent-offset 2)
     (web-mode-css-indent-offset 2)
@@ -2021,12 +2050,12 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package css-mode
-    :hook (css-ts-mode . my-lsp-bridge-enable)
+    :hook (css-ts-mode . my-enable-lsp-bridge)
     :custom
     (css-indent-offset 2))
 
   (use-package scss-mode
-    :hook (scss-mode . my-lsp-bridge-enable))
+    :hook (scss-mode . my-enable-lsp-bridge))
 #+end_src
 
 ** json-ts-mode
@@ -2038,7 +2067,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (json-ts-mode-indent-offset 2)
     :config
     (defun my-json-enable-dev ()
-      (my-lsp-bridge-enable)
+      (my-enable-lsp-bridge)
       )
 
     (defun my-json-generate-language-server-json ()
@@ -2053,7 +2082,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
                                 (file-match (plist-get schema :fileMatch))
                                 (filtered-file-match (seq-filter #'(lambda (match)
                                                                      (and (not (string-prefix-p "!" match))
-                                                                          (not (string-match-p exclude-pattern match)))) 
+                                                                          (not (string-match-p exclude-pattern match))))
                                                                  file-match)))
                       (add-to-list 'json-validation `((:url . ,url) (:fileMatch ., filtered-file-match)))))
                 schemas)
@@ -2074,7 +2103,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 #+begin_src elisp
   (use-package qml-ts-mode
     :straight (qml-ts-mode :type git :host github :repo "xhcoding/qml-ts-mode")
-    :hook (qml-ts-mode . my-lsp-bridge-enable)
+    :hook (qml-ts-mode . my-enable-lsp-bridge)
     :custom
     (qml-ts-mode-indent-offset 4))
 #+end_src
@@ -2334,9 +2363,9 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (defun my/dash-docs-search (&optional pattern)
       "Search doc."
       (interactive)
-      (when-let ((search-pattern 
-                  (or pattern 
-                      (let* ((current-symbol 
+      (when-let ((search-pattern
+                  (or pattern
+                      (let* ((current-symbol
                               (if (use-region-p)
                                   (buffer-substring-no-properties (region-beginning) (region-end))
                                 (thing-at-point 'symbol)))
@@ -2366,7 +2395,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
     (defun my/dash-docs-search-docset (&optional docset)
       "Search doc in `docset'"
-      (interactive (list (dash-docs-read-docset 
+      (interactive (list (dash-docs-read-docset
                           "Docset"
                           (dash-docs-installed-docsets))))
       (unless (boundp 'dash-docs-docsets)
@@ -2970,7 +2999,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
              (new-screenshot-name (concat org-file-name ".png"))
              (new-screenshot-path (expand-file-name  new-screenshot-name screenshot-dir)))
         (when (and (featurep 'org-roam) (string-prefix-p org-roam-directory org-file-path))
-          (setq new-screenshot-name 
+          (setq new-screenshot-name
                 (substring new-screenshot-name (+ 1 (string-match-p "-" new-screenshot-name)))
                 new-screenshot-path
                 (expand-file-name new-screenshot-name screenshot-dir)))
@@ -3003,7 +3032,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
             (org-file-name (file-name-sans-extension (file-name-nondirectory org-file-path)))
             (dirname (expand-file-name org-file-name my-blog-img-dir)))
         (when (and (featurep 'org-roam) (string-prefix-p org-roam-directory org-file-path))
-          (setq dirname (expand-file-name 
+          (setq dirname (expand-file-name
                          (substring org-file-name (+ 1 (string-match-p "-" org-file-name)))
                          my-blog-img-dir)))
         (make-directory dirname t)
@@ -3274,7 +3303,7 @@ Wanderlust + offlineimap3 + mu
     :defer t)
 
   (use-package aichat
-    :demand t
+    :defer t
     :load-path (lambda () (expand-file-name "Project/emacs-aichat" my-code-dir))
     :config
     (setq aichat-bingai-proxy "localhost:7890"
@@ -3349,8 +3378,8 @@ Wanderlust + offlineimap3 + mu
      '("b" . consult-buffer)
      '("r" . consult-ripgrep)
 
-     '("f" . project-find-file)
-     '("p" . project-switch-project)
+     '("f" . projectile-find-file)
+     '("p" . projectile-switch-project)
 
      '("/" . evilnc-comment-or-uncomment-lines)
 

@@ -224,10 +224,11 @@ Emacs 启动过程的早期加载。
          (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
         (bootstrap-version 6))
     (unless (file-exists-p bootstrap-file)
-      (setq url-proxy-services
-            '(("http" . "localhost:7890")
-              ("https" . "localhost:7890")
-              ("no_proxy" . "0.0.0.0")))
+      (let ((proxy (or (getenv "PROXY") "127.0.0.1:7890")))
+        (setq url-proxy-services
+              `(("http" . ,proxy)
+                ("https" . ,proxy)
+                ("no_proxy" . "0.0.0.0"))))
       (with-current-buffer
           (url-retrieve-synchronously
            "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
@@ -580,12 +581,12 @@ scratch buffer 内容为空
 *** 利用左边 Win 键
 
 #+begin_src elisp
-  (setq w32-lwindow-modifier 'super
-        w32-apps-modifier 'hyper)
+  (when sys-is-windows
+    (setq w32-lwindow-modifier 'super
+          w32-apps-modifier 'hyper)
 
-  (w32-register-hot-key (kbd "s-["))
-  (w32-register-hot-key (kbd "s-]"))
-
+    (w32-register-hot-key (kbd "s-["))
+    (w32-register-hot-key (kbd "s-]")))
 #+end_src
 
 ** gcmh 优化垃圾回收
@@ -1076,24 +1077,6 @@ ref:https://github.com/manateelazycat/toggle-one-window
 ** projectile.el 工程管理
 
 #+begin_src elisp
-  ;; 获取开发机的 ip
-  (defvar my-remote-machine-ip nil)
-  (defun my-get-remote-machine-ip ()
-    ""
-    (make-process
-     :name "remote machine ip"
-     :command '("ssh" "xhcoding@192.168.1.2" "ip addr show eth0")
-     :filter (lambda (_ data)
-               (when (string-match "inet \\(.*\\)/" data)
-                 (setq my-remote-machine-ip
-                       (substring data (match-beginning 1) (match-end 1))))))
-    nil)
-
-  (my-get-remote-machine-ip)
-
-#+end_src
-
-#+begin_src elisp
   (use-package projectile
     :straight t
     :bind (("<f6>" . projectile-compile-project)
@@ -1383,10 +1366,9 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :defer t)
 
   (use-package lsp-bridge
-    :load-path (lambda () (expand-file-name "ELisp/lsp-bridge" my-code-dir))
-    ;; :straight (lsp-bridge :type git :host github :repo "xhcoding/lsp-bridge" :branch "feat/render-preproc"
-    ;;                       :files ("*")
-    ;;                       :build nil)
+    :straight (lsp-bridge :type git :host github :repo "manateelazycat/lsp-bridge"
+                          :files ("*")
+                          :build nil)
     :defer t
     :bind (:map lsp-bridge-mode-map
                 ([remap xref-find-definitions] . lsp-bridge-find-def)
@@ -1395,7 +1377,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :init
 
     ;; 手动添加到 load-path
-    ;; (add-to-list 'load-path (straight--repos-dir "lsp-bridge"))
+    (add-to-list 'load-path (straight--repos-dir "lsp-bridge"))
 
     (setq lsp-bridge-org-babel-lang-list nil)
 
@@ -2106,6 +2088,13 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :hook (qml-ts-mode . my-enable-lsp-bridge)
     :custom
     (qml-ts-mode-indent-offset 4))
+#+end_src
+
+** lua 开发
+
+#+begin_src elisp
+  (use-package lua-mode
+    :straight t)
 #+end_src
 
 ** plantuml 支持
@@ -3467,8 +3456,9 @@ Wanderlust + offlineimap3 + mu
 ** 启动 emacs server
 
 #+begin_src elisp
-  (unless (daemonp)
-    (server-start))
+  (when sys-is-windows
+    (unless (daemonp)
+      (server-start)))
 #+end_src
 
 ** daemon 模式下启动更多内容

@@ -1072,6 +1072,18 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (add-to-list 'yas-snippet-dirs my-private-snippets-dir)
     (yas-reload-all))
 
+  (use-package yasnippet-snippets
+    :straight t
+    :after yasnippet)
+
+#+end_src
+
+** separedit 快速编辑
+
+#+begin_src elisp
+  (use-package separedit
+    :straight t
+    :bind ("C-c '" . separedit))
 #+end_src
 
 ** projectile.el 工程管理
@@ -1736,6 +1748,38 @@ ref:https://github.com/manateelazycat/toggle-one-window
           (javascript-mode . js-ts-mode)
           (python-mode     . python-ts-mode)
           (sh-mode         . bash-ts-mode)))
+
+  (setq treesit-language-source-alist
+        '((bash . ("https://github.com/tree-sitter/tree-sitter-bash"))
+          (c . ("https://github.com/tree-sitter/tree-sitter-c"))
+          (cpp . ("https://github.com/tree-sitter/tree-sitter-cpp"))
+          (css . ("https://github.com/tree-sitter/tree-sitter-css"))
+          (cmake . ("https://github.com/uyha/tree-sitter-cmake"))
+          (csharp     . ("https://github.com/tree-sitter/tree-sitter-c-sharp.git"))
+          (dockerfile . ("https://github.com/camdencheek/tree-sitter-dockerfile"))
+          (elisp . ("https://github.com/Wilfred/tree-sitter-elisp"))
+          (go . ("https://github.com/tree-sitter/tree-sitter-go"))
+          (gomod      . ("https://github.com/camdencheek/tree-sitter-go-mod.git"))
+          (html . ("https://github.com/tree-sitter/tree-sitter-html"))
+          (java       . ("https://github.com/tree-sitter/tree-sitter-java.git"))
+          (javascript . ("https://github.com/tree-sitter/tree-sitter-javascript"))
+          (json . ("https://github.com/tree-sitter/tree-sitter-json"))
+          (lua . ("https://github.com/Azganoth/tree-sitter-lua"))
+          (make . ("https://github.com/alemuller/tree-sitter-make"))
+          (markdown . ("https://github.com/MDeiml/tree-sitter-markdown" nil "tree-sitter-markdown/src"))
+          (ocaml . ("https://github.com/tree-sitter/tree-sitter-ocaml" nil "ocaml/src"))
+          (org . ("https://github.com/milisims/tree-sitter-org"))
+          (python . ("https://github.com/tree-sitter/tree-sitter-python"))
+          (php . ("https://github.com/tree-sitter/tree-sitter-php"))
+          (typescript . ("https://github.com/tree-sitter/tree-sitter-typescript" nil "typescript/src"))
+          (tsx . ("https://github.com/tree-sitter/tree-sitter-typescript" nil "tsx/src"))
+          (ruby . ("https://github.com/tree-sitter/tree-sitter-ruby"))
+          (rust . ("https://github.com/tree-sitter/tree-sitter-rust"))
+          (sql . ("https://github.com/m-novikov/tree-sitter-sql"))
+          (vue . ("https://github.com/merico-dev/tree-sitter-vue"))
+          (yaml . ("https://github.com/ikatyang/tree-sitter-yaml"))
+          (toml . ("https://github.com/tree-sitter/tree-sitter-toml"))
+          (zig . ("https://github.com/GrayJack/tree-sitter-zig"))))
 #+end_src
 
 ** ts-fold 基于 treesit 的代码折叠
@@ -2673,79 +2717,24 @@ ref:https://github.com/manateelazycat/toggle-one-window
 *** gtd 配置
 
 #+begin_src elisp
-  (use-package org
-    :defer t
+  (use-package org-gtd
     :straight t
-    :bind (("C-c a" . org-agenda)
-           ("C-c c" . org-capture))
+    :after org
+    :bind (("C-c d c" . org-gtd-capture)
+           ("C-c d e" . org-gtd-engage)
+           ("C-c d p" . org-gtd-process-inbox)
+           ("C-c d n" . org-gtd-show-all-next)
+           ("C-c d s" . org-gtd-review-stuck-projects)
+           :map org-gtd-clarify-map
+           ("C-c c" . org-gtd-organize))
     :init
-    (setq my-org-inbox-file (expand-file-name "gtd/inbox.org" my-org-dir))
-    (setq my-org-projects-file (expand-file-name "gtd/projects.org" my-org-dir))
-
-    (defun my--verify-refile-target ()
-      "Exclude todo keywords with a done state from refile targets"
-      (not (member (nth 2 (org-heading-components)) org-done-keywords)))
-
+    (setq org-gtd-update-ack "3.0.0")
     :custom
-    (org-agenda-files `(,my-org-inbox-file ,my-org-projects-file))
-    (org-link-email-description-format "%s 📧 %f")
-    (org-capture-templates `(("i" "Inbox" entry
-                              (file ,my-org-inbox-file)
-                              ,(concat "* TODO %?\n"
-                                       "/Entered on/ %U"))
-                             ("e" "Inbox [Mail]" entry
-                              (file ,my-org-inbox-file)
-                              ,(concat "* TODO Process \"%a\" %?\n"
-                                       "/Entered on/ %U"))))
-    (org-todo-keywords
-     '((sequence "TODO(t)" "NEXT(n)" "HOLD(h)" "|" "DONE(d)" "CANCELLED(c)")))
-
-    ;; refile
-    (org-refile-targets '((nil :maxlevel . 9)
-                          (org-agenda-files :maxlevel . 9)))
-
-   (org-refile-use-outline-path t)
-    (org-outline-path-complete-in-steps nil)
-    (org-refile-allow-creating-parent-nodes 'confirm)
-    (org-refile-target-verify-function 'my--verify-refile-target)
-
-    ;; agenda
-
-    (org-agenda-span 'day)
-    (org-agenda-hide-tags-regexp ".")
-    (org-agenda-prefix-format
-     '((agenda . " %i %-12:c%?-12t% s")
-       (todo   . " ")
-       (tags   . " %i %-12:c")
-       (search . " %i %-12:c")))
-
-    (org-agenda-custom-commands
-     '(("g" "Get Things Done (GTD)"
-        ((agenda ""
-                 ((org-agenda-skip-function
-                   '(org-agenda-skip-entry-if 'deadline))
-                  (org-deadline-warning-days 0)))
-         (todo "NEXT"
-               ((org-agenda-skip-function
-                 '(org-agenda-skip-entry-if 'deadline))
-                (org-agenda-prefix-format "  %i %-12:c ")
-                (org-agenda-overriding-header "\nTasks\n")))
-         (agenda nil
-                 ((org-agenda-entry-types '(:deadline))
-                  (org-agenda-format-date "")
-                  (org-deadline-warning-days 7)
-                  (org-agenda-skip-function
-                   '(org-agenda-skip-entry-if 'notregexp "\\* NEXT"))
-                  (org-agenda-overriding-header "\nDeadlines")))
-         (tags-todo "inbox"
-                    ((org-agenda-prefix-format "  %?-12t% s")
-                     (org-agenda-overriding-header "\nInbox\n")))
-         (tags "CLOSED>\"<today>\""
-               ((org-agenda-overriding-header "\nCompleted today\n")))))))
-
-
-
-    )
+    (org-gtd-directory (expand-file-name "gtd" my-org-dir))
+    :config
+    (org-gtd-mode +1)
+    (setq org-edna-use-inheritance t)
+    (org-edna-mode +1))
 #+end_src
 
 *** export 设置
@@ -3363,7 +3352,6 @@ Wanderlust + offlineimap3 + mu
      '("0" . meow-digit-argument)
      '("?" . meow-cheatsheet)
 
-     '("s" . my/consult-better-line)
      '("b" . consult-buffer)
      '("r" . consult-ripgrep)
 

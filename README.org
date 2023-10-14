@@ -1953,10 +1953,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src emacs-lisp
   (use-package python
-    :hook (python-ts-mode . my-enable-lsp-bridge)
-    :config
-    (require 'dap-python)
-    (setq dap-python-debugger 'debugpy))
+    :hook (python-ts-mode . my-enable-lsp-bridge))
 #+end_src
 
 ** java 开发配置
@@ -2156,6 +2153,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package dap-mode
+    :disabled t
     :straight t
     :defer t
     :config
@@ -2329,6 +2327,43 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (require 'dap-mode)
     (my--ensure-lsp-workspace-root)
     (call-interactively #'dap-debug)
+    )
+#+end_src
+
+** dape 调试
+
+#+begin_src elisp
+  (use-package dape
+    ;; Currently only on github
+    :straight (dape :type git :host github :repo "svaante/dape")
+    :config
+
+    (setq dape--content-length-re "Content-Length: *\\([[:digit:]]+\\)[]?\n[]?\n")
+
+    (add-to-list 'dape-configs
+               '(codelldb-rust
+                 modes (rust-ts-mode)
+                 ;; Replace vadimcn.vscode-lldb with the vsix directory you just extracted
+                 command "codelldb"
+                 host "127.0.0.1"
+                 port 5818
+                 command-args ("--port" "5818" "--settings" "{\"sourceLanguages\":[\"rust\"]}")
+                 :type "lldb"
+                 :request "launch"
+                 :cwd dape-cwd-fn
+                 :program dape-find-file))
+
+    (add-to-list 'dape-configs
+                 `(debugpy
+                   modes (python-ts-mode python-mode)
+                   command "python3"
+                   command-args ("-m" "debugpy.adapter")
+                   :type "executable"
+                   :request "launch"
+                   :cwd dape-cwd-fn
+                   :program dape-find-file-buffer-default))
+
+
     )
 #+end_src
 

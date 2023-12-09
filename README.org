@@ -1086,6 +1086,18 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :bind ("C-c '" . separedit))
 #+end_src
 
+** 文件同步
+
+#+begin_src elisp
+  (defconst my-rsync-ssh-path "c:/Users/xhcoding/scoop/apps/cwrsync/current/bin/ssh.exe")
+
+  (defun my-rsync-files-command (src dst ip port user pass)
+    "The command of Sync files from src to user@ip:dst with rsync."
+     (when-let* ((cygdrive-src (replace-regexp-in-string "\\([cd]\\):" "/cygdrive/\\1" (expand-file-name src)))
+                 (rsync-cmd (format "sshpass -p %s rsync -avPz -e '%s -p %s' %s %s@%s:%s" pass my-rsync-ssh-path port cygdrive-src user ip dst)))
+       rsync-cmd))
+#+end_src
+
 ** projectile.el 工程管理
 
 #+begin_src elisp
@@ -1104,12 +1116,15 @@ ref:https://github.com/manateelazycat/toggle-one-window
       (projectile-project-root))
 
     ;; 生成 rsync 同步命令当前工程命令字符串
-    (defun my-rsync-command()
+    (defun my-project-rsync-command()
       "Rsync command."
-      (when-let* ((name (project-name (project-current)))
-                  (root (expand-file-name (my-project-root)))
-                  (cygdrive-root (replace-regexp-in-string "\\([cd]\\):" "/cygdrive/\\1" root)))
-        (format "rsync -avPz --password-file=/cygdrive/c/Users/xhcoding/rsyncd.secrets --exclude-from=%srsync_exclude.txt %s* xhcoding@%s::%s" cygdrive-root cygdrive-root (or my-remote-machine-ip "192.168.1.2") name)))
+      (when-let* ((src (my-project-root))
+                  (dst "/home/xhcoding/")
+                  (ip "192.168.139.128")
+                  (port "22")
+                  (user "xhcoding")
+                  (pass "xiaohuan"))
+        (my-rsync-files-command src dst ip port user pass)))
 
     ;; 生成使用 ssh 远程在当前工作工程目录下执行命令的字符串
     (defun my-ssh-shell-command (command)
@@ -1378,9 +1393,10 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :defer t)
 
   (use-package lsp-bridge
-    :straight (lsp-bridge :type git :host github :repo "manateelazycat/lsp-bridge"
-                          :files ("*")
-                          :build nil)
+    :load-path (lambda() (expand-file-name "ELisp/lsp-bridge" my-code-dir))
+    ;; :straight (lsp-bridge :type git :host github :repo "manateelazycat/lsp-bridge"
+    ;;                       :files ("*")
+    ;;                       :build nil)
     :defer t
     :bind (:map lsp-bridge-mode-map
                 ([remap xref-find-definitions] . lsp-bridge-find-def)
@@ -1482,8 +1498,6 @@ ref:https://github.com/manateelazycat/toggle-one-window
         (if (region-active-p)
             (indent-region (region-beginning) (region-end))
           (indent-region (point-min) (point-max))))
-       ((and (boundp 'lsp-bridge-mode) lsp-bridge-mode)
-        (call-interactively #'lsp-bridge-code-format))
        (t
         (call-interactively #'apheleia-format-buffer))))
     )
@@ -1527,30 +1541,11 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (when sys-is-windows
       (setenv "GIT_ASKPASS" "git-gui--askpass")))
 
-  (use-package magit-todos
-    :straight t
-    :after magit
-    :config
-    (magit-todos-mode +1))
-
-
   (use-package ssh-agency
     :straight t
     :after magit)
 
-  (use-package forge
-    :straight t
-    :after magit
-    :defines (forge-database-connector forge-topic-list-columns)
-    :init
-    (setq forge-database-connector 'sqlite-builtin
-          forge-topic-list-columns
-          '(("#" 5 forge-topic-list-sort-by-number (:right-align t) number nil)
-            ("Title" 60 t nil title  nil)
-            ("State" 6 t nil state nil)
-            ("Updated" 10 t nil updated nil))))
-
-#+end_src
+  #+end_src
 
 *** 显示当前行的最后提交信息
 
@@ -1828,13 +1823,11 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package c-ts-mode
-    :hook (c++-ts-mode . my-cc-enable-dev)
+    :hook ((c-ts-mode c++-ts-mode) . my-cc-enable-dev)
     :custom
     (c-ts-mode-indent-offset  4)
     :config
     (defun my-cc-enable-dev()
-      ;; treesit-forward-sexp 工作异常
-      ;; (setq forward-sexp-function nil)
       (setq-local lsp-bridge-completion-hide-characters '(";" "(" ")" "[" "]" "{" "}" "," "\""))
       (my-enable-lsp-bridge))
 
@@ -2339,31 +2332,6 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :config
 
     (setq dape--content-length-re "Content-Length: *\\([[:digit:]]+\\)[]?\n[]?\n")
-
-    (add-to-list 'dape-configs
-               '(codelldb-rust
-                 modes (rust-ts-mode)
-                 ;; Replace vadimcn.vscode-lldb with the vsix directory you just extracted
-                 command "codelldb"
-                 host "127.0.0.1"
-                 port 5818
-                 command-args ("--port" "5818" "--settings" "{\"sourceLanguages\":[\"rust\"]}")
-                 :type "lldb"
-                 :request "launch"
-                 :cwd dape-cwd-fn
-                 :program dape-find-file))
-
-    (add-to-list 'dape-configs
-                 `(debugpy
-                   modes (python-ts-mode python-mode)
-                   command "python3"
-                   command-args ("-m" "debugpy.adapter")
-                   :type "executable"
-                   :request "launch"
-                   :cwd dape-cwd-fn
-                   :program dape-find-file-buffer-default))
-
-
     )
 #+end_src
 
@@ -2588,13 +2556,13 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
     (create-fontset-from-fontset-spec
      (font-xlfd-name
-      (font-spec :family "等距更纱黑体 SC"
+      (font-spec :family "Sarasa Mono HC"
                  :weight 'regular
                  :slant 'normal
                  :registry "fontset-orgtable")))
 
     (set-fontset-font "fontset-orgtable" '(#x0 . #xffff)
-                      (font-spec :family "等距更纱黑体 SC"
+                      (font-spec :family "Sarasa Mono HC"
                                  :weight 'regular
                                  :slant 'normal))
 
@@ -2621,13 +2589,6 @@ ref:https://github.com/manateelazycat/toggle-one-window
                       )))
       (setq prettify-symbols-unprettify-at-point t)
       (prettify-symbols-mode 1))
-
-    ;; 中文强调标记可用
-    (setcar (nthcdr 0 org-emphasis-regexp-components) " \t('\"{[:nonascii:]")
-    (setcar (nthcdr 1 org-emphasis-regexp-components) "- \t.,:!?;'\")}\\[[:nonascii:]")
-    (org-set-emph-re 'org-emphasis-regexp-components org-emphasis-regexp-components)
-    (org-element-update-syntax)
-
 
     ;; 设置标题行之间总是有空格；列表之间根据情况自动加空格
     (setq org-blank-before-new-entry '((heading . t)
@@ -2833,10 +2794,12 @@ ref:https://github.com/manateelazycat/toggle-one-window
   (use-package denote
     :straight t
     :custom
-    (denote-directory (expand-file-name "denote" "D:/Code/Test"))
+    (denote-directory (expand-file-name "denote" my-org-dir))
     (denote-known-keywords '("emacs" "life" "cs"))
-    (denote-org-front-matter
-     "#+title: %1$s
+    :bind (("C-c n n" . denote))
+    :config
+    (setq denote-org-front-matter
+          "#+title: %1$s
   ,#+date: %2$s
   ,#+author: xhcoding
   ,#+identifier: %4$s
@@ -2844,10 +2807,8 @@ ref:https://github.com/manateelazycat/toggle-one-window
   ,#+hugo_tags: %3$s
   ,#+hugo_categories: %3$s
   ,#+hugo_draft: true
-
   "
   )
-    :bind (("C-c n n" . denote))
     )
 #+end_src
 
@@ -3347,8 +3308,8 @@ Wanderlust + offlineimap3 + mu
     :defer t
     :load-path (lambda () (expand-file-name "Project/emacs-aichat" my-code-dir))
     :config
-    (setq aichat-bingai-proxy "localhost:7890"
-          aichat-openai-proxy "localhost:7890")
+    (setq aichat-bingai-proxy "127.0.0.1:7890"
+          aichat-openai-proxy "127.0.0.1:7890")
     (aichat-toggle-debug)
     (aichat-bingai-prompt-create "translator"
                                  :input-prompt "请翻译: "

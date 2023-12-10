@@ -225,11 +225,6 @@ Emacs 启动过程的早期加载。
          (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
         (bootstrap-version 6))
     (unless (file-exists-p bootstrap-file)
-      (let ((proxy (or (getenv "PROXY") "127.0.0.1:7890")))
-        (setq url-proxy-services
-              `(("http" . ,proxy)
-                ("https" . ,proxy)
-                ("no_proxy" . "0.0.0.0"))))
       (with-current-buffer
           (url-retrieve-synchronously
            "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"

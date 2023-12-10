@@ -7,6 +7,7 @@ readonly LOAD_PATH=$EMACS_DIR/etc
 
 PACK_NAME=emacs-x
 PACK_SYSTEM=x86_64-linux
+export EMACS_CONFIG_MODE=minimal
 
 if [[ ! -z $1 ]] ; then
     PACK_NAME=$1
@@ -16,8 +17,8 @@ if [[ ! -z $2 ]] ; then
     PACK_SYSTEM=$1
 fi
 
-PACK_FILENAME="${PACK_NAME}-${PACK_SYSTEM}.tar.gz"
-INSTALLER_FILENAME="${PACK_NAME}-${PACK_SYSTEM}-installer.run"
+PACK_FILENAME="${PACK_NAME}-${EMACS_CONFIG_MODE}-${PACK_SYSTEM}.tar.gz"
+INSTALLER_FILENAME="${PACK_NAME}-${EMACS_CONFIG_MODE}-${PACK_SYSTEM}-installer.run"
 
 echo "Emacs dir: $EMACS_DIR"
 echo "Pack name: $PACK_FILENAME"

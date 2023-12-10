@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-readonly SCRIPT_LINES=51
+readonly SCRIPT_LINES=53
 readonly TEMP_PATH=/tmp/emacs-x-temp.tar.gz
 
 INSTALL_DIR=/opt/emacs-x
@@ -39,6 +39,8 @@ cat <<EOF > $EMACS_X_PATH
 export GUIX_LOCPATH=${INSTALL_DIR}/opt/emacs/lib/locale
 export PATH=${INSTALL_DIR}/opt/emacs/bin:${PATH}
 source ${INSTALL_DIR}/opt/emacs/etc/profile
+
+export EMACS_CONFIG_MODE=minimal
 
 emacs --init-directory=${INSTALL_DIR}/opt/emacs/share/emacs.d "\$@"
 EOF

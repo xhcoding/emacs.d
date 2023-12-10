@@ -24,3 +24,9 @@ jobs:
 
       - name: build emacs-x
         run: bash build.sh
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+            files: emacs-x-*-installer.*

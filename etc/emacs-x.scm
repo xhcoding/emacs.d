@@ -8,6 +8,7 @@
   #:use-module (guix build-system copy)
   #:use-module (guix utils)
   #:use-module (gnu packages)
+  #:use-module (gnu packages base)
   #:use-module (gnu packages emacs)
   #:use-module (gnu packages version-control)
   #:use-module (gnu packages tls)
@@ -79,3 +80,8 @@ FILE should be an absolute file name."
    (description "Minimal emacs config for programing.")
    (license license:gpl3+)))
 
+(define-public my-glibc-locales
+  (make-glibc-utf8-locales
+   glibc
+   #:locales (list "en_US" "zh_CN")
+   #:name "glibc-zh-utf8-locales"))

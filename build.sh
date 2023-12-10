@@ -45,10 +45,16 @@ guix build -K -L $LOAD_PATH emacs-config
 echo "Start install emacs-config"
 guix install -L $LOAD_PATH emacs-config
 
+echo "Start build glibc-zh-utf8-locales"
+guix build -K -L $LOAD_PATH glibc-zh-utf8-locales
+
+echo "Start install glibc-zh-utf8-locales"
+guix install -L $LOAD_PATH glibc-zh-utf8-locales
+
 echo "Start pack"
 
 guix pack -L $LOAD_PATH -RR -r $PACK_FILENAME -S /opt/emacs/bin=bin -S /opt/emacs/lib=lib -S /opt/emacs/etc=etc -S /opt/emacs/share=share \
-     glibc-locales emacs-git emacs-config
+     glibc-zh-utf8-locales emacs-git emacs-config
      
 echo "Generate installer"
 

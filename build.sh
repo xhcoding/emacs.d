@@ -4,6 +4,7 @@ set -e
 
 readonly EMACS_DIR="$(dirname "$(readlink -f "$0")")"
 readonly LOAD_PATH=$EMACS_DIR/etc
+readonly BUILD_PATH=$EMACS_DIR/build
 
 PACK_NAME=emacs-x
 PACK_SYSTEM=x86_64-linux
@@ -30,6 +31,62 @@ guix build -K -L $LOAD_PATH emacs-git
 echo "Start install emacs-git"
 
 guix install -L $LOAD_PATH emacs-git
+
+echo "Start install tree sitter grammers"
+
+if [[ ! -d $BUILD_PATH ]] ; then
+    mkdir $BUILD_PATH
+fi
+
+pushd $BUILD_PATH
+
+guix pack -RR -r tree-sitter-grammar.tar.gz -S /opt/tree-sitter/lib=lib \
+     tree-sitter-bash \
+     tree-sitter-bibtex \
+     tree-sitter-c \
+     tree-sitter-c-sharp \
+     tree-sitter-clojure \
+     tree-sitter-cmake \
+     tree-sitter-cpp \
+     tree-sitter-css \
+     tree-sitter-dockerfile \
+     tree-sitter-elisp \
+     tree-sitter-elixir \
+     tree-sitter-elm \
+     tree-sitter-go \
+     tree-sitter-gomod \
+     tree-sitter-haskell \
+     tree-sitter-heex \
+     tree-sitter-html \
+     tree-sitter-java \
+     tree-sitter-javascript \
+     tree-sitter-json \
+     tree-sitter-julia \
+     tree-sitter-lua \
+     tree-sitter-markdown \
+     tree-sitter-markdown-gfm \
+     tree-sitter-meson \
+     tree-sitter-ocaml \
+     tree-sitter-org \
+     tree-sitter-php \
+     tree-sitter-plantuml \
+     tree-sitter-python \
+     tree-sitter-r \
+     tree-sitter-racket \
+     tree-sitter-ruby \
+     tree-sitter-rust \
+     tree-sitter-scala \
+     tree-sitter-scheme \
+     tree-sitter-typescript
+
+tar xf tree-sitter-grammar.tar.gz
+
+if [[ ! -d $EMACS_DIR/tree-sitter ]] ; then
+    mkdir $EMACS_DIR/tree-sitter
+fi
+
+cp -f opt/tree-sitter/lib/tree-sitter/* $EMACS_DIR/tree-sitter/
+popd
 
 echo "Start init emacs-config"
 

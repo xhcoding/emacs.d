@@ -98,7 +98,6 @@
   - [[#expand-region-递增选区][expand-region 递增选区]]
   - [[#openwith-外部工具打开文件][openwith 外部工具打开文件]]
   - [[#启用-treesit][启用 treesit]]
-  - [[#ts-fold-基于-treesit-的代码折叠][ts-fold 基于 treesit 的代码折叠]]
   - [[#elisp-配置][elisp 配置]]
   - [[#c-开发配置][C++ 开发配置]]
     - [[#citre][citre]]
@@ -1795,21 +1794,6 @@ ref:https://github.com/manateelazycat/toggle-one-window
           (yaml . ("https://github.com/ikatyang/tree-sitter-yaml"))
           (toml . ("https://github.com/tree-sitter/tree-sitter-toml"))
           (zig . ("https://github.com/GrayJack/tree-sitter-zig"))))
-#+end_src
-
-** ts-fold 基于 treesit 的代码折叠
-
-#+begin_src emacs-lisp
-  (use-package ts-fold
-    :if full?
-    :straight (ts-fold :type git :host github :repo "AndrewSwerlick/ts-fold" :branch "andrew-sw/treesit-el-support")
-    :bind ("M-z" . ts-fold-toggle)
-    :config
-    ;; elisp support
-    (add-to-list 'ts-fold-range-alist '(emacs-lisp-mode
-                                        (function_definition . ts-fold-range-seq)
-                                        (list . ts-fold-range-seq)
-                                        (special_form . ts-fold-range-seq))))
 #+end_src
 
 ** elisp 配置

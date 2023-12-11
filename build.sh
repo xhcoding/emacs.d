@@ -40,7 +40,7 @@ fi
 
 pushd $BUILD_PATH
 
-guix pack -RR -r tree-sitter-grammar.tar.gz -S /opt/tree-sitter/lib=lib \
+guix pack -L $LOAD_PATH -RR -r tree-sitter-grammar.tar.gz -S /opt/tree-sitter/lib=lib \
      tree-sitter-bash \
      tree-sitter-bibtex \
      tree-sitter-c \

@@ -696,12 +696,7 @@ ref: https://github.com/manateelazycat/auto-save
     )
 
 
-  (use-package ef-themes
-    :if full?
-    :straight t
-    :config
-    (load-theme 'ef-summer :no-confirm)
-    )
+  (load-theme 'modus-operandi :no-confirm)
 #+end_src
 
 ** ligature 连字体
@@ -733,6 +728,7 @@ ref: https://github.com/manateelazycat/auto-save
 
 #+begin_src elisp
   (use-package awesome-tray
+    :if (display-graphic-p)
     :demand t
     :straight (awesome-tray :type git :host github :repo "manateelazycat/awesome-tray")
     :custom
@@ -1357,7 +1353,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
   (use-package fingertip
     :straight (fingertip :type git :host github :repo "manateelazycat/fingertip")
     :defer t
-    :hook ((prog-mode toml-ts-mode) my-enable-pair-parents)
+    :hook ((prog-mode toml-ts-mode) . my-enable-pair-parents)
     :bind (:map fingertip-mode-map
                 ("(" . fingertip-open-round)
                 ("[" . fingertip-open-bracket)
@@ -1398,6 +1394,22 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (add-to-list 'meow-mode-state-list '(color-rg-mode . motion)))
 #+end_src
 
+** corfu 补全窗口
+
+#+begin_src elisp
+  (use-package corfu
+    :straight t
+    :defer t
+    :custom
+    (corfu-auto t)
+    :bind (:map corfu-map
+                ("RET" . nil)))
+
+  (use-package corfu-terminal
+    :straight t
+    :defer t)
+#+end_src
+
 ** lsp-bridge 代码补全
 
 #+begin_src elisp
@@ -1435,7 +1447,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
                  (setq file-name (expand-file-name "OrgBabel/org-src-babel" my-code-dir))
                  (write-region (point-min) (point-max) file-name))
                (setq buffer-file-name file-name)
-               (my-enable-lsp-bridge)))
+               (my-enable-code-service)))
            (put ',intern-pre 'function-documentation
                 (format "Enable lsp-bridge-mode in the buffer of org source block (%s)."
                         (upcase ,lang)))
@@ -1467,17 +1479,25 @@ ref:https://github.com/manateelazycat/toggle-one-window
     )
 #+end_src
 
-启动 lsp-bridge
+
+** 启动代码服务
 
 #+begin_src elisp
-  (defun my-enable-lsp-bridge()
-    "Enable lsp bridge mode."
+  (defun my-enable-code-service ()
+    ""
     (require 'yasnippet)
     (yas-minor-mode)
-    (require 'lsp-bridge)
-    (lsp-bridge-mode))
+    (if full?
+        (progn
+          (require 'lsp-bridge)
+          (lsp-bridge-mode))
+      (corfu-mode)
+      (if (display-graphic-p)
+          (corfu-popupinfo-mode)
+        (corfu-terminal-mode))
 
-
+      (unless (derived-mode-p 'emacs-lisp-mode)
+        (eglot-ensure))))
 #+end_src
 
 ** highlight-parentheses 高亮外层括号
@@ -1803,7 +1823,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :hook ((emacs-lisp-mode . my-enable-elisp-dev))
     :config
     (defun my-enable-elisp-dev ()
-      (my-enable-lsp-bridge)
+      (my-enable-code-service)
       (treesit-parser-create 'elisp)))
 #+end_src
 
@@ -1822,7 +1842,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 #+begin_src emacs-lisp
   (use-package cmake-ts-mode
     :mode "CMakeLists.txt\\'"
-    :hook (cmake-ts-mode . my-enable-lsp-bridge))
+    :hook (cmake-ts-mode . my-enable-code-service))
 #+end_src
 
 *** c-ts-mode 设置
@@ -1835,7 +1855,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :config
     (defun my-cc-enable-dev()
       (setq-local lsp-bridge-completion-hide-characters '(";" "(" ")" "[" "]" "{" "}" "," "\""))
-      (my-enable-lsp-bridge))
+      (my-enable-code-service))
 
     (defun my-cc--treesit-match-namespace (node parent bol &rest _)
       (string= (treesit-node-type (treesit-node-parent parent)) "namespace_definition"))
@@ -1945,14 +1965,14 @@ ref:https://github.com/manateelazycat/toggle-one-window
 #+begin_src elisp
   (use-package rust-ts-mode
     :mode "\\.rs\\'"
-    :hook (rust-ts-mode . my-enable-lsp-bridge))
+    :hook (rust-ts-mode . my-enable-code-service))
 #+end_src
 
 ** python 开发配置
 
 #+begin_src emacs-lisp
   (use-package python
-    :hook (python-ts-mode . my-enable-lsp-bridge))
+    :hook (python-ts-mode . my-enable-code-service))
 #+end_src
 
 ** java 开发配置
@@ -1968,7 +1988,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
       (require 'lsp-bridge-jdtls)
       (setq-local lsp-bridge-get-single-lang-server-by-project 'lsp-bridge-get-jdtls-server-by-project)
-      (my-enable-lsp-bridge))
+      (my-enable-code-service))
 
     ;； jdtls 目录
     (defconst my--java-jdtls-root-dir (expand-file-name "apps/jdtls/current" (getenv "SCOOP")))
@@ -2043,7 +2063,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (defun my-js-enable-dev ()
       ;; treesit-forward-sexp 工作异常
       (setq forward-sexp-function nil)
-      (my-enable-lsp-bridge))
+      (my-enable-code-service))
     )
 #+end_src
 
@@ -2053,7 +2073,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
   (use-package typescript-ts-mode
     :if full?
     :mode "\\.ts\\'"
-    :hook (typescript-ts-base-mode . my-enable-lsp-bridge))
+    :hook (typescript-ts-base-mode . my-enable-code-service))
 #+end_src
 
 *** HTML
@@ -2063,7 +2083,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :if full?
     :straight t
     :mode "\\.\\(phtml\\|php\\|[gj]sp\\|as[cp]x\\|erb\\|djhtml\\|html?\\|hbs\\|ejs\\|jade\\|swig\\|tm?pl\\|vue\\)$"
-    :hook (web-mode . my-enable-lsp-bridge)
+    :hook (web-mode . my-enable-code-service)
     :custom
     (web-mode-markup-indent-offset 2)
     (web-mode-css-indent-offset 2)
@@ -2077,12 +2097,12 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package css-mode
-    :hook (css-ts-mode . my-enable-lsp-bridge)
+    :hook (css-ts-mode . my-enable-code-service)
     :custom
     (css-indent-offset 2))
 
   (use-package scss-mode
-    :hook (scss-mode . my-enable-lsp-bridge))
+    :hook (scss-mode . my-enable-code-service))
 #+end_src
 
 ** json-ts-mode
@@ -2094,7 +2114,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (json-ts-mode-indent-offset 2)
     :config
     (defun my-enable-json-dev ()
-      (my-enable-lsp-bridge))
+      (my-enable-code-service))
     
     (defun my-json-generate-language-server-json ()
       (with-temp-file (expand-file-name "vscode-json-language-server.json" my-etc-dir)
@@ -2130,7 +2150,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
   (use-package qml-ts-mode
     :if full?
     :straight (qml-ts-mode :type git :host github :repo "xhcoding/qml-ts-mode")
-    :hook (qml-ts-mode . my-enable-lsp-bridge)
+    :hook (qml-ts-mode . my-enable-code-service)
     :custom
     (qml-ts-mode-indent-offset 4))
 #+end_src

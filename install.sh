@@ -41,6 +41,7 @@ export PATH=${INSTALL_DIR}/opt/emacs/bin:${PATH}
 source ${INSTALL_DIR}/opt/emacs/etc/profile
 
 export EMACS_CONFIG_MODE=minimal
+export TERM=xterm-256color
 
 emacs --init-directory=${INSTALL_DIR}/opt/emacs/share/emacs.d "\$@"
 EOF

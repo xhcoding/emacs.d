@@ -24,6 +24,11 @@ INSTALLER_FILENAME="${PACK_NAME}-${EMACS_CONFIG_MODE}-${PACK_SYSTEM}-installer.r
 echo "Emacs dir: $EMACS_DIR"
 echo "Pack name: $PACK_FILENAME"
 
+if [ -f guix-binary-nightly.x86_64-linux.tar.xz ]; then
+    rm -rf guix-binary-nightly.x86_64-linux.tar.xz
+fi
+
+
 echo "Start build emacs-git"
 
 guix build -K -L $LOAD_PATH emacs-git
@@ -112,7 +117,7 @@ guix install -L $LOAD_PATH glibc-zh-utf8-locales
 echo "Start pack"
 
 guix pack -L $LOAD_PATH -RR -r $PACK_FILENAME -S /opt/emacs/bin=bin -S /opt/emacs/lib=lib -S /opt/emacs/etc=etc -S /opt/emacs/share=share \
-     glibc-zh-utf8-locales emacs-git emacs-config
+     glibc-zh-utf8-locales emacs-git emacs-config ripgrep fd
      
 echo "Generate installer"
 

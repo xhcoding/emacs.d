@@ -360,11 +360,25 @@ from: https://github.com/doomemacs/doomemacs/blob/master/lisp/doom-start.el
 
 #+end_src
 
+** use-package 扩展
+
+添加 =:ban= 关键字，不要执行 use-package
+
+#+begin_src elisp
+  (push :ban use-package-keywords)
+
+  (defun use-package-normalize/:ban (_name _keyword _arg)
+    "Do nothing, return nil.")
+
+  (defun use-package-handler/:ban (name _keyword _arg rest state)
+    (use-package-process-keywords name rest state))
+#+end_src
+
 ** 启动速度测试
 
 #+begin_src elisp
   (use-package benchmark-init
-    :if debug?
+    :ban debug?
     :straight t
     :demand t
     :hook (after-init . benchmark-init/deactivate)
@@ -565,10 +579,10 @@ scratch buffer 内容为空
   (setq use-short-answers t)
 #+end_src
 
-*** 关掉提示声音
+*** 关掉提示
 
 #+begin_src elisp
-  (setq visible-bell t)
+  (setq ring-bell-function 'ignore)
 #+end_src
 
 *** 禁止光标闪烁
@@ -679,7 +693,7 @@ ref: https://github.com/manateelazycat/auto-save
 
 #+begin_src elisp
   (use-package faces
-    :if full?
+    :ban minimal?
     :custom-face
     (variable-pitch
      ((t (:font ,(font-xlfd-name (font-spec :family "Alegreya"))))))
@@ -703,7 +717,7 @@ ref: https://github.com/manateelazycat/auto-save
 
 #+begin_src elisp
   (use-package ligature
-    :if full?
+    :ban minimal?
     :straight t
     :defer t
     :hook prog-mode
@@ -1542,7 +1556,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package ispell
-    :if full?
+    :ban minimal?
     :config
     (setq ispell-program-name "hunspell"
           ispell-dictionary "en_US"
@@ -1551,7 +1565,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
           ispell-hunspell-dictionary-alist '(("en_US"))))
 
   (use-package wucuo
-    :if full?
+    :ban minimal?
     :straight t
     :defer t)
 
@@ -1979,7 +1993,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package java-ts-mode
-    :if full?
+    :ban minimal?
     :hook (java-ts-mode . my-enable-java-dev)
     :config
     (defun my-enable-java-dev ()
@@ -2057,7 +2071,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package js
-    :if full?
+    :ban minimal?
     :hook (js-ts-mode . my-js-enable-dev)
     :config
     (defun my-js-enable-dev ()
@@ -2071,7 +2085,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src emacs-lisp
   (use-package typescript-ts-mode
-    :if full?
+    :ban minimal?
     :mode "\\.ts\\'"
     :hook (typescript-ts-base-mode . my-enable-code-service))
 #+end_src
@@ -2080,7 +2094,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src emacs-lisp
   (use-package web-mode
-    :if full?
+    :ban minimal?
     :straight t
     :mode "\\.\\(phtml\\|php\\|[gj]sp\\|as[cp]x\\|erb\\|djhtml\\|html?\\|hbs\\|ejs\\|jade\\|swig\\|tm?pl\\|vue\\)$"
     :hook (web-mode . my-enable-code-service)
@@ -2148,7 +2162,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package qml-ts-mode
-    :if full?
+    :ban minimal?
     :straight (qml-ts-mode :type git :host github :repo "xhcoding/qml-ts-mode")
     :hook (qml-ts-mode . my-enable-code-service)
     :custom
@@ -2159,7 +2173,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package lua-mode
-    :if full?
+    :ban minimal?
     :straight t)
 #+end_src
 
@@ -2167,7 +2181,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src emacs-lisp
   (use-package plantuml-mode
-    :if full?
+    :ban minimal?
     :straight t
     :defer t
     :custom
@@ -2186,7 +2200,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package dash-docs
-    :if full?
+    :ban minimal?
     :straight t
     :commands (my/dash-docs-search)
     :bind (([remap apropos-documentation] . my/dash-docs-search)
@@ -2300,7 +2314,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package shrface
-    :if full?
+    :ban minimal?
     :straight t
     :defer t
     :config
@@ -2315,7 +2329,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package eww
-    :if full?
+    :ban minimal?
     :defer t
     :mode-hydra
     (eww-mode
@@ -2338,7 +2352,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package olivetti
-    :if full?
+    :ban minimal?
     :straight t
     :defer t
     :hook (prog-mode text-mode outline-mode special-mode elfeed-show-mode)
@@ -2350,7 +2364,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package org
-    :if full?
+    :ban minimal?
     :defer t
     :straight t
     :hook (org-mode . my--org-prettify-symbols)
@@ -2456,7 +2470,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     )
 
   (use-package org-modern
-    :if full?
+    :ban minimal?
     :straight t
     :hook (org-mode . org-modern-mode)
     :config
@@ -2481,7 +2495,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     )
 
   (use-package org-appear
-    :if full?
+    :ban minimal?
     :straight t
     :hook (org-mode . org-appear-mode)
     :config
@@ -2497,7 +2511,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package org
-    :if full?
+    :ban minimal?
     :defer t
     :straight t
     :custom
@@ -2516,7 +2530,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package org
-    :if full?
+    :ban minimal?
     :defer t
     :straight t
     :custom
@@ -2578,7 +2592,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package org-gtd
-    :if full?
+    :ban minimal?
     :straight t
     :after org
     :bind (("C-c d c" . org-gtd-capture)
@@ -2602,7 +2616,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src emacs-lisp
   (use-package org
-    :if full?
+    :ban minimal?
     :straight t
     :defer t
     :hook (org-mode . my--set-org-html-head-extra)
@@ -2619,7 +2633,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     )
 
   (use-package htmlize
-    :if full?
+    :ban minimal?
     :straight t
     :after org)
 
@@ -2629,7 +2643,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src emacs-lisp
   (use-package toc-org
-    :if full?
+    :ban minimal?
     :straight t
     :commands (toc-org-insert-toc)
     :custom
@@ -2640,7 +2654,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package org-contrib
-    :if full?
+    :ban minimal?
     :straight t
     :after org)
 #+end_src
@@ -2661,7 +2675,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package denote
-    :if full?
+    :ban minimal?
     :straight t
     :custom
     (denote-directory (expand-file-name "denote" "D:/Code/Test"))
@@ -2748,7 +2762,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     "Blog's post address.")
 
   (use-package ox-hugo
-    :if full?
+    :ban minimal?
     :straight t
     :after org
     :custom
@@ -2808,7 +2822,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     )
 
   (use-package easy-hugo
-    :if full?
+    :ban minimal?
     :straight t
     :defer t
     :config
@@ -2839,7 +2853,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package pangu-spacing
-    :if full?
+    :ban minimal?
     :straight t
     :after org
     :hook (org-mode . pangu-spacing-mode)
@@ -2851,7 +2865,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package org-download
-    :if full?
+    :ban minimal?
     :straight t
     :after org
     :config
@@ -2922,7 +2936,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package eaf
-    :if full?
+    :ban minimal?
     :straight (emacs-application-framework :type git :host github :repo "emacs-eaf/emacs-application-framework"
                           :files ("*")
                           :build nil)
@@ -2955,7 +2969,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package popweb
-    :if full?
+    :ban minimal?
     :straight (popweb :type git :host github :repo "manateelazycat/popweb" :build nil)
     :commands (popweb-dict-eudic-input popweb-import-browser-cookies)
     :bind ("<f1> t" . popweb-dict-eudic-input)
@@ -2983,18 +2997,18 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package websocket
-    :if full?
+    :ban minimal?
     :straight t
     :defer t)
 
   (use-package websocket-bridge
-    :if full?
+    :ban minimal?
     :straight (websocket-bridge :type git :host github :repo "ginqi7/websocket-bridge")
     :defer t)
 
 
   (use-package dictionary-overlay
-    :if full?
+    :ban minimal?
     :straight (dictionary-overlay :type git :host github :repo "ginqi7/dictionary-overlay"
                                   :build nil)
     :defer t
@@ -3012,7 +3026,7 @@ Wanderlust + offlineimap3 + mu
 
 #+begin_src emacs-lisp
   (use-package wl
-    :if full?
+    :ban minimal?
     :straight (wanderlust)
     :defer t
     :hook ((wl . meow-motion-mode))
@@ -3101,7 +3115,7 @@ Wanderlust + offlineimap3 + mu
 
 #+begin_src emacs-lisp
   (use-package alert-toast
-    :if full?
+    :ban minimal?
     :straight t
     :after wl
     :config
@@ -3117,7 +3131,7 @@ Wanderlust + offlineimap3 + mu
 
 #+begin_src emacs-lisp
   (use-package elfeed
-    :if full?
+    :ban minimal?
     :straight t
     :defer t
     :config
@@ -3137,7 +3151,7 @@ Wanderlust + offlineimap3 + mu
     )
 
   (use-package elfeed-org
-    :if full?
+    :ban minimal?
     :straight t
     :after elfeed
     :config
@@ -3149,7 +3163,7 @@ Wanderlust + offlineimap3 + mu
 
 #+begin_src elisp
   (use-package leetcode
-    :if full?
+    :ban minimal?
     :straight (leetcode :type git :host github :repo "xhcoding/leetcode.el")
     :defer t
     :custom
@@ -3175,7 +3189,7 @@ Wanderlust + offlineimap3 + mu
 
 #+begin_src elisp
   (use-package tex
-    :if full?
+    :ban minimal?
     :straight (auctex)
     :defer t
     :config
@@ -3188,11 +3202,12 @@ Wanderlust + offlineimap3 + mu
 
 #+begin_src elisp
   (use-package async-await
+    :ban minimal?
     :straight t
     :defer t)
 
   (use-package aichat
-    :if full?
+    :ban minimal?
     :defer t
     :load-path (lambda () (expand-file-name "Project/emacs-aichat" my-code-dir))
     :config

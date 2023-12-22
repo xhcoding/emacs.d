@@ -37,13 +37,13 @@ echo "Start install emacs-git"
 
 guix install -L $LOAD_PATH emacs-git
 
-echo "Start install tree sitter grammers"
-
 if [[ ! -d $BUILD_PATH ]] ; then
     mkdir $BUILD_PATH
 fi
 
 pushd $BUILD_PATH
+
+echo "Start install tree sitter grammers"
 
 guix pack -L $LOAD_PATH -RR -r tree-sitter-grammar.tar.gz -S /opt/tree-sitter/lib=lib \
      tree-sitter-bash \
@@ -116,8 +116,8 @@ guix install -L $LOAD_PATH glibc-zh-utf8-locales
 
 echo "Start pack"
 
-guix pack -L $LOAD_PATH -RR -r $PACK_FILENAME -S /opt/emacs/bin=bin -S /opt/emacs/lib=lib -S /opt/emacs/etc=etc -S /opt/emacs/share=share \
-     glibc-zh-utf8-locales emacs-git emacs-config ripgrep fd
+guix pack -L $LOAD_PATH -RR -r $PACK_FILENAME -S /opt/emacs/bin=bin -S /opt/emacs/lib=lib -S /opt/emacs/etc=etc -S /opt/emacs/share=share -S /opt/emacs/include=include \
+     glibc-zh-utf8-locales emacs-git emacs-config ripgrep fd librime libvterm
      
 echo "Generate installer"
 

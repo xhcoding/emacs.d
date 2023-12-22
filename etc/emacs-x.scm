@@ -20,7 +20,7 @@
   (let ((commit "7a7491a23eacaae41c07568d833e668ec1d351cf")
         (revision "1"))
    (package
-    (inherit emacs)
+    (inherit emacs-no-x)
     (name "emacs-git")
     (version (git-version "30.0.50" revision commit))
     (source

@@ -1339,6 +1339,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package acm-terminal
+    :defer t
     :straight (acm-terminal :type git :host github :repo "twlz0ne/acm-terminal")
     :init
     (unless (display-graphic-p)

@@ -368,18 +368,16 @@ from: https://github.com/doomemacs/doomemacs/blob/master/lisp/doom-start.el
   (require 'use-package)
   (push :ban use-package-keywords)
 
-  (defun use-package-normalize/:ban (_name _keyword _arg)
-    "Do nothing, return nil.")
+  (defalias 'use-package-normalize/:ban 'use-package-normalize-test)
 
-  (defun use-package-handler/:ban (name _keyword _arg rest state)
-    (use-package-process-keywords name rest state))
+  (defalias 'use-package-handler/:ban 'use-package-handler/:unless)
 #+end_src
 
 ** 启动速度测试
 
 #+begin_src elisp
   (use-package benchmark-init
-    :ban debug?
+    :ban not-debug?
     :straight t
     :demand t
     :hook (after-init . benchmark-init/deactivate)

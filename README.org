@@ -1338,6 +1338,9 @@ ref:https://github.com/manateelazycat/toggle-one-window
 ** acm-terminal
 
 #+begin_src elisp
+  (use-package popon
+    :straight t
+    :defer t)
   (use-package acm-terminal
     :defer t
     :straight (acm-terminal :type git :host github :repo "twlz0ne/acm-terminal")

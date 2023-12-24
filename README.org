@@ -365,6 +365,7 @@ from: https://github.com/doomemacs/doomemacs/blob/master/lisp/doom-start.el
 添加 =:ban= 关键字，不要执行 use-package
 
 #+begin_src elisp
+  (require 'use-package)
   (push :ban use-package-keywords)
 
   (defun use-package-normalize/:ban (_name _keyword _arg)
@@ -679,13 +680,15 @@ ref: https://github.com/manateelazycat/auto-save
 
     :custom
     (default-input-method "rime")
-    (rime-show-candidate 'posframe)
     (rime-user-data-dir (expand-file-name "rime-user" my-etc-dir))
 
     :config
     (setq
      rime-disable-predicates '(rime-predicate-after-alphabet-char-p
-                               rime-predicate-prog-in-code-p)))
+                               rime-predicate-prog-in-code-p))
+    (if (display-graphic-p)
+        (setq rime-show-candidate 'posframe)
+      (setq rime-show-candidate 'minibuffer)))
 
 #+end_src
 
@@ -710,7 +713,7 @@ ref: https://github.com/manateelazycat/auto-save
     )
 
 
-  (load-theme 'modus-operandi :no-confirm)
+  (load-theme 'modus-operandi-tinted :no-confirm)
 #+end_src
 
 ** ligature 连字体
@@ -738,72 +741,12 @@ ref: https://github.com/manateelazycat/auto-save
                                          "\\\\" "://")))
 #+end_src
 
-** awesome-tray 底部信息显示
+** doom-modeline
 
 #+begin_src elisp
-  (use-package awesome-tray
-    :if (display-graphic-p)
-    :demand t
-    :straight (awesome-tray :type git :host github :repo "manateelazycat/awesome-tray")
-    :custom
-    (awesome-tray-mode-line-active-color "#94d4ff")
-    (awesome-tray-mode-line-inactive-color "#9f9f9f")
-    (awesome-tray-date-format "%H:%M")
-    (awesome-tray-git-format  "%s")
-    (awesome-tray-buffer-name-max-length 40)
-    (awesome-tray-active-modules '("location" "buffer-name" "buffer-encoding" "input-method" "date"))
-    :config
-
-    (defun my-awesome-tray-module-buffer-encoding-info ()
-      (concat (pcase (coding-system-eol-type buffer-file-coding-system)
-                (0 "LF ")
-                (1 "CRLF ")
-                (2 "CR ")
-                (_ ""))
-              (let* ((sys (coding-system-plist buffer-file-coding-system))
-                     (cat (plist-get sys :category))
-                     (sym (if (memq cat
-                                    '(coding-category-undecided coding-category-utf-8))
-                              'utf-8
-                            (plist-get sys :name))))
-                (upcase (symbol-name sym)))))
-
-    (defface my-awesome-tray-module-buffer-encoding-face
-      '((t :inherit awesome-tray-green-face))
-      "Buffer encoding module face."
-      :group 'awesome-tray)
-
-    (add-to-list 'awesome-tray-module-alist
-                 '("buffer-encoding" . (my-awesome-tray-module-buffer-encoding-info my-awesome-tray-module-buffer-encoding-face)))
-
-    (awesome-tray-mode +1)
-    )
-
-#+end_src
-
-** sort-tab 快速切换到其它 buffer
-
-#+begin_src elisp
-  (use-package sort-tab
-    :demand t
-    :straight (sort-tab :type git :host github :repo "manateelazycat/sort-tab")
-    :bind (("M-1" . sort-tab-select-visible-tab)
-           ("M-2" . sort-tab-select-visible-tab)
-           ("M-3" . sort-tab-select-visible-tab)
-           ("M-4" . sort-tab-select-visible-tab)
-           ("M-5" . sort-tab-select-visible-tab)
-           ("M-6" . sort-tab-select-visible-tab)
-           ("M-7" . sort-tab-select-visible-tab)
-           ("M-8" . sort-tab-select-visible-tab)
-           ("M-9" . sort-tab-select-visible-tab)
-           )
-    :custom
-    (sort-tab-show-index-number t)
-    :config
-    (sort-tab-mode +1)
-    (with-eval-after-load 'ace-window
-      (add-to-list 'aw-ignored-buffers "*sort-tab*"))
-    )
+  (use-package doom-modeline
+    :straight t
+    :hook (after-init . doom-modeline-mode))
 #+end_src
 
 ** hydra 方便的快捷键设置
@@ -811,12 +754,6 @@ ref: https://github.com/manateelazycat/auto-save
 #+begin_src elisp
   (use-package hydra
     :straight t)
-
-  (use-package hydra-posframe
-    :straight (hydra-posframe :type git :host github :repo "Ladicle/hydra-posframe")
-    :defer t
-    :custom
-    (hydra-posframe-poshandler 'posframe-poshandler-window-top-right-corner))
 
   (use-package pretty-hydra
     :straight t
@@ -835,24 +772,7 @@ ref: https://github.com/manateelazycat/auto-save
                (concat
                 (apply f (list icon-name :face face :height height :v-adjust v-adjust))
                 " "))))
-         (propertize title 'face face))))
-    :config
-    (pretty-hydra-define my-base-hydra ()
-      (""
-       (("h" backward-char "Backward")
-        ("j" next-line "Next")
-        ("k" previous-line "Previous")
-        ("l" forward-char "Forward")
-        ("<prior>" scroll-down-command "Scroll down")
-        ("<next>" scroll-up-command "Scroll up")
-        ("m" set-mark-command "Set mark"))))
-    )
-
-  (use-package major-mode-hydra
-    :demand t
-    :straight t
-    :bind
-    ("M-m" . major-mode-hydra))
+         (propertize title 'face face)))))
 
 #+end_src
 
@@ -1120,73 +1040,6 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :bind ("C-c '" . separedit))
 #+end_src
 
-** projectile.el 工程管理
-
-#+begin_src elisp
-  (use-package projectile
-    :straight t
-    :bind (("<f6>" . projectile-compile-project)
-           ("<f5>" . projectile-run-project))
-    :custom
-    (projectile-indexing-method 'alien)
-    :config
-    (projectile-mode +1)
-    (define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)
-
-    (defun my-project-root()
-      "Return project-root of current project."
-      (projectile-project-root))
-
-    ;; 生成 rsync 同步命令当前工程命令字符串
-    (defun my-rsync-command()
-      "Rsync command."
-      (when-let* ((name (project-name (project-current)))
-                  (root (expand-file-name (my-project-root)))
-                  (cygdrive-root (replace-regexp-in-string "\\([cd]\\):" "/cygdrive/\\1" root)))
-        (format "rsync -avPz --password-file=/cygdrive/c/Users/xhcoding/rsyncd.secrets --exclude-from=%srsync_exclude.txt %s* xhcoding@%s::%s" cygdrive-root cygdrive-root (or my-remote-machine-ip "192.168.1.2") name)))
-
-    ;; 生成使用 ssh 远程在当前工作工程目录下执行命令的字符串
-    (defun my-ssh-shell-command (command)
-      "Shell command with ssh."
-      (when-let ((name (project-name (project-current))))
-        (format "ssh xhcoding@192.168.1.2 \"cd /home/xhcoding/Code/%s ; %s\"" name command)))
-
-    ;; 如果包括 rsync_exclude.txt ，远程执行编译命令
-    (defun my*wrap-compile-command (command)
-      ""
-      (let ((root (my-project-root)))
-        (if (and (not (string-prefix-p "rsync" command))
-                 root
-                 (file-exists-p (expand-file-name "rsync_exclude.txt" root)))
-            (concat (my-rsync-command) " && " (my-ssh-shell-command command))
-          command)))
-
-    (advice-add 'projectile-compilation-command :filter-return #'my*wrap-compile-command)
-
-      ;; 如果包括 rsync_exclude.txt ，远程执行 run 命令
-    (defun my*wrap-run-command (command)
-      ""
-      (let ((root (my-project-root)))
-        (if (and (not (string-prefix-p "ssh" command))
-                 root
-                 (file-exists-p (expand-file-name "rsync_exclude.txt" root)))
-            (my-ssh-shell-command command)
-          command)))
-    (advice-add 'projectile-run-command :filter-return #'my*wrap-run-command)
-
-
-    ;; 注册工程
-    (projectile-register-project-type 'xmake '("xmake.lua")
-                                      :project-file "xmake.lua"
-                                      :compile "xmake"
-                                      :test "xmake run"
-                                      :run "xmake run")
-    )
-
-
-
-#+end_src
-
 ** compile 增强
 
 #+begin_src elisp
@@ -1408,29 +1261,18 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (add-to-list 'meow-mode-state-list '(color-rg-mode . motion)))
 #+end_src
 
-** corfu 补全窗口
+** markdown
 
 #+begin_src elisp
-  (use-package corfu
-    :straight t
-    :defer t
-    :custom
-    (corfu-auto t)
-    :bind (:map corfu-map
-                ("RET" . nil)))
-
-  (use-package corfu-terminal
+  (use-package markdown-mode
     :straight t
     :defer t)
+
 #+end_src
 
 ** lsp-bridge 代码补全
 
 #+begin_src elisp
-
-  (use-package markdown-mode
-    :straight t
-    :defer t)
 
   (use-package lsp-bridge
     :straight (lsp-bridge :type git :host github :repo "manateelazycat/lsp-bridge"
@@ -1493,25 +1335,26 @@ ref:https://github.com/manateelazycat/toggle-one-window
     )
 #+end_src
 
+** acm-terminal
+
+#+begin_src elisp
+  (use-package acm-terminal
+    :straight (acm-terminal :type git :host github :repo "twlz0ne/acm-terminal")
+    :init
+    (unless (display-graphic-p)
+      (with-eval-after-load 'acm
+        (require 'acm-terminal))))
+#+end_src
+
 
 ** 启动代码服务
 
 #+begin_src elisp
   (defun my-enable-code-service ()
-    ""
     (require 'yasnippet)
     (yas-minor-mode)
-    (if full?
-        (progn
-          (require 'lsp-bridge)
-          (lsp-bridge-mode))
-      (corfu-mode)
-      (if (display-graphic-p)
-          (corfu-popupinfo-mode)
-        (corfu-terminal-mode))
-
-      (unless (derived-mode-p 'emacs-lisp-mode)
-        (eglot-ensure))))
+    (require 'lsp-bridge)
+    (lsp-bridge-mode))
 #+end_src
 
 ** highlight-parentheses 高亮外层括号
@@ -1535,40 +1378,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 #+begin_src elisp
   (use-package apheleia
     :straight t
-    :defer t
-    :bind ("C-M-\\" . my/format-buffer-or-region)
-    :config
-    (defun my/format-buffer-or-region ()
-      (interactive)
-      (cond
-       ((derived-mode-p 'emacs-lisp-mode)
-        (if (region-active-p)
-            (indent-region (region-beginning) (region-end))
-          (indent-region (point-min) (point-max))))
-       ((and (boundp 'lsp-bridge-mode) lsp-bridge-mode)
-        (call-interactively #'lsp-bridge-code-format))
-       (t
-        (call-interactively #'apheleia-format-buffer))))
-    )
-#+end_src
-
-** wuco 拼写检查
-
-#+begin_src elisp
-  (use-package ispell
-    :ban minimal?
-    :config
-    (setq ispell-program-name "hunspell"
-          ispell-dictionary "en_US"
-          ispell-local-dictionary-alist '(("en_US" "[[:alpha:]]" "[^[:alpha:]]" "[']" nil ("-d" "en_US") nil utf-8))
-          ispell-hunspell-dict-paths-alist `(("en_US" ,(expand-file-name "dict/en_US.aff" my-etc-dir)))
-          ispell-hunspell-dictionary-alist '(("en_US"))))
-
-  (use-package wucuo
-    :ban minimal?
-    :straight t
     :defer t)
-
 #+end_src
 
 ** git 配置
@@ -1763,20 +1573,6 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+end_src
 
-** openwith 外部工具打开文件
-
-#+begin_src elisp
-  (use-package openwith
-    :if sys-is-windows
-    :straight t
-    :custom
-    (openwith-associations
-     '(("\\.\\(doc\\|docs\\|xls\\|xlsx\\|ppt\\|pptx\\)$"
-          "explorer.exe" (file))))
-    :config
-    (openwith-mode +1))
-#+end_src
-
 ** 启用 treesit
 
 #+begin_src elisp
@@ -1834,7 +1630,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src emacs-lisp
   (use-package elisp-mode
-    :hook ((emacs-lisp-mode . my-enable-elisp-dev))
+    :hook (emacs-lisp-mode . my-enable-elisp-dev)
     :config
     (defun my-enable-elisp-dev ()
       (my-enable-code-service)
@@ -1842,20 +1638,11 @@ ref:https://github.com/manateelazycat/toggle-one-window
 #+end_src
 
 ** C++ 开发配置
-*** citre
-
-#+begin_src elisp
-  (use-package citre
-    :disabled t
-    :straight t
-    :defer t)
-#+end_src
 
 *** cmake-ts-mode 设置
 
 #+begin_src emacs-lisp
   (use-package cmake-ts-mode
-    :mode "CMakeLists.txt\\'"
     :hook (cmake-ts-mode . my-enable-code-service))
 #+end_src
 
@@ -1863,29 +1650,10 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package c-ts-mode
-    :hook ((c-ts-mode c++-ts-mode) . my-cc-enable-dev)
+    :hook ((c-ts-mode c++-ts-mode) . my-enable-code-service)
     :custom
     (c-ts-mode-indent-offset  4)
-    :config
-    (defun my-cc-enable-dev()
-      (setq-local lsp-bridge-completion-hide-characters '(";" "(" ")" "[" "]" "{" "}" "," "\""))
-      (my-enable-code-service))
-
-    (defun my-cc--treesit-match-namespace (node parent bol &rest _)
-      (string= (treesit-node-type (treesit-node-parent parent)) "namespace_definition"))
-
-    (defun my-cc--indent-style ()
-      "Indent rules supported by `c-ts-mode'"
-      (let* ((mode (if (derived-mode-p 'c-ts-mode) 'c 'cpp))
-             (common (alist-get 'gnu (c-ts-mode--indent-styles mode))))
-        `(
-          ;; namespace
-          (my-cc--treesit-match-namespace parent-bol 0)
-          ,@common)))
-
-    (setq c-ts-mode-indent-style #'my-cc--indent-style)
-
-    )
+    (c-basic-offset 4))
 #+end_src
 
 *** 导入 VS 环境变量
@@ -1978,7 +1746,6 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package rust-ts-mode
-    :mode "\\.rs\\'"
     :hook (rust-ts-mode . my-enable-code-service))
 #+end_src
 
@@ -1989,147 +1756,14 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :hook (python-ts-mode . my-enable-code-service))
 #+end_src
 
-** java 开发配置
-
-#+begin_src elisp
-  (use-package java-ts-mode
-    :ban minimal?
-    :hook (java-ts-mode . my-enable-java-dev)
-    :config
-    (defun my-enable-java-dev ()
-      ;; treesit-forward-sexp 工作异常
-      (setq forward-sexp-function nil)
-
-      (require 'lsp-bridge-jdtls)
-      (setq-local lsp-bridge-get-single-lang-server-by-project 'lsp-bridge-get-jdtls-server-by-project)
-      (my-enable-code-service))
-
-    ;； jdtls 目录
-    (defconst my--java-jdtls-root-dir (expand-file-name "apps/jdtls/current" (getenv "SCOOP")))
-    (defconst my--java-jdtls-conf-dir (expand-file-name "config_win" my--java-jdtls-root-dir))
-    (defconst my--java-jdtls-equinox-path   (car (directory-files (expand-file-name "plugins" my--java-jdtls-root-dir) t "org.eclipse.equinox.launcher_.*\\.jar")))
-    (defconst my--java-jdtls-command
-      `("java"
-        "-Declipse.application=org.eclipse.jdt.ls.core.id1"
-        "-Dosgi.bundles.defaultStartLevel=4"
-        "-Declipse.product=org.eclipse.jdt.ls.core.product"
-        "-Dosgi.checkConfiguration=true"
-        ,(format "-Dosgi.sharedConfiguration.area=%s" my--java-jdtls-conf-dir)
-        "-Dosgi.sharedConfiguration.area.readOnly=true"
-        "-Dosgi.configuration.cascaded=true"
-        "-Xms1G"
-        "--add-modules=ALL-SYSTEM"
-        "--add-opens"
-        "java.base/java.util=ALL-UNNAMED"
-        "--add-opens"
-        "java.base/java.lang=ALL-UNNAMED"
-        "-jar"
-        ,my--java-jdtls-equinox-path
-        ))
-
-    (defun my--lsp-bridge-jdtls-init-config (project-path filepath)
-      "Initialize JDTLS configuration"
-      (message "init config: %s " project-path)
-      (let* ((json-object-type 'plist)
-             (config (json-read-file lsp-bridge-jdtls-default-file))
-             (config-file (lsp-bridge-jdtls-config-file project-path filepath))
-             (data-directory (lsp-bridge-jdtls-project-data-dir project-path filepath)))
-
-        ;; An additional JVM option (can be used multiple times. Note, use with equal sign. For example: --jvm-arg=-Dlog.level=ALL
-
-        (plist-put config :command my--java-jdtls-command)
-
-        (when (listp lsp-bridge-jdtls-jvm-args)
-          (let ((jvm-args (mapcar (lambda (arg) (concat "--jvm-arg=" arg))
-                                  lsp-bridge-jdtls-jvm-args)))
-
-            (plist-put config :command (vconcat (plist-get config :command)
-                                                jvm-args))))
-
-        ;; Add the `-data` parameter to the startup parameter
-        (plist-put config :command (vconcat (plist-get config :command) `("-data" ,data-directory)))
-
-        (make-directory (file-name-directory config-file) t)
-
-        (with-temp-file config-file
-          (insert (json-encode config)))))
-
-    (advice-add 'lsp-bridge-jdtls-init-config :override 'my--lsp-bridge-jdtls-init-config)
-
-    )
-
-
-  (use-package kotlin-ts-mode
-    :disabled not-full?
-    :straight (kotlin-ts-mode :type git :host gitlab :repo "bricka/emacs-kotlin-ts-mode")
-    :mode "\\.kts\\'")
-#+end_src
-
-** web 开发
-
-*** Javascript
-
-#+begin_src elisp
-  (use-package js
-    :ban minimal?
-    :hook (js-ts-mode . my-js-enable-dev)
-    :config
-    (defun my-js-enable-dev ()
-      ;; treesit-forward-sexp 工作异常
-      (setq forward-sexp-function nil)
-      (my-enable-code-service))
-    )
-#+end_src
-
-*** Typescript
-
-#+begin_src emacs-lisp
-  (use-package typescript-ts-mode
-    :ban minimal?
-    :mode "\\.ts\\'"
-    :hook (typescript-ts-base-mode . my-enable-code-service))
-#+end_src
-
-*** HTML
-
-#+begin_src emacs-lisp
-  (use-package web-mode
-    :ban minimal?
-    :straight t
-    :mode "\\.\\(phtml\\|php\\|[gj]sp\\|as[cp]x\\|erb\\|djhtml\\|html?\\|hbs\\|ejs\\|jade\\|swig\\|tm?pl\\|vue\\)$"
-    :hook (web-mode . my-enable-code-service)
-    :custom
-    (web-mode-markup-indent-offset 2)
-    (web-mode-css-indent-offset 2)
-    (web-mode-code-indent-offset 2)
-    (web-mode-enable-auto-indentation nil)
-    )
-#+end_src
-
-*** css
-
-
-#+begin_src elisp
-  (use-package css-mode
-    :hook (css-ts-mode . my-enable-code-service)
-    :custom
-    (css-indent-offset 2))
-
-  (use-package scss-mode
-    :hook (scss-mode . my-enable-code-service))
-#+end_src
-
 ** json-ts-mode
 
 #+begin_src elisp
   (use-package json-ts-mode
-    :hook (json-ts-mode . my-enable-json-dev)
+    :hook (json-ts-mode . my-enable-code-service)
     :custom
     (json-ts-mode-indent-offset 2)
     :config
-    (defun my-enable-json-dev ()
-      (my-enable-code-service))
-    
     (defun my-json-generate-language-server-json ()
       (with-temp-file (expand-file-name "vscode-json-language-server.json" my-etc-dir)
         (url-insert-file-contents "https://www.schemastore.org/api/json/catalog.json")
@@ -2169,14 +1803,6 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (qml-ts-mode-indent-offset 4))
 #+end_src
 
-** lua 开发
-
-#+begin_src elisp
-  (use-package lua-mode
-    :ban minimal?
-    :straight t)
-#+end_src
-
 ** plantuml 支持
 
 #+begin_src emacs-lisp
@@ -2193,7 +1819,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package dape
-    :straight (dape :type git :host github :repo "svaante/dape"))
+    :straight t)
 #+end_src
 
 ** dash-docs 查询 dash 文档
@@ -2331,20 +1957,10 @@ ref:https://github.com/manateelazycat/toggle-one-window
   (use-package eww
     :ban minimal?
     :defer t
-    :mode-hydra
-    (eww-mode
-     (:title (pretty-hydra-title "eww" 'oction "browser") :color blue :inherit (my-base-hydra/heads)
-             :pre (unless hydra-posframe-mode
-                    (hydra-posframe-mode)))
-     ("A"
-      (("d" eww-download "Download")
-       ("t" popweb-dict-eudic-input "Translate" :exit nil))))
     :init
     (add-hook 'eww-after-render-hook #'shrface-mode)
     :config
-    (require 'shrface)
-    (require 'popweb)
-    )
+    (require 'shrface))
 
 #+end_src
 
@@ -2456,18 +2072,10 @@ ref:https://github.com/manateelazycat/toggle-one-window
       (setq prettify-symbols-unprettify-at-point t)
       (prettify-symbols-mode 1))
 
-    ;; 中文强调标记可用
-    (setcar (nthcdr 0 org-emphasis-regexp-components) " \t('\"{[:nonascii:]")
-    (setcar (nthcdr 1 org-emphasis-regexp-components) "- \t.,:!?;'\")}\\[[:nonascii:]")
-    (org-set-emph-re 'org-emphasis-regexp-components org-emphasis-regexp-components)
-    (org-element-update-syntax)
-
-
     ;; 设置标题行之间总是有空格；列表之间根据情况自动加空格
     (setq org-blank-before-new-entry '((heading . t)
                                        (plain-list-item . auto)
-                                       ))
-    )
+                                       )))
 
   (use-package org-modern
     :ban minimal?
@@ -2503,8 +2111,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (setq org-appear-autosubmarkers t)
     (setq org-appear-autoentities t)
     (setq org-appear-autokeywords t)
-    (setq org-appear-inside-latex t)
-    )
+    (setq org-appear-inside-latex t))
 #+end_src
 
 *** org 基本配置
@@ -2702,8 +2309,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
   (use-package emacsql-sqlite-builtin
     :disabled t
     :straight t
-    :defer t
-  )
+    :defer t)
 
   (use-package org-roam
     :disabled t

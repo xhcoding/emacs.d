@@ -25,4 +25,4 @@ org-roam.db
 /dictionary-overlay-data
 /cmake-tools
 aichat*
-forge-database.sqlite
+/debug-adapters

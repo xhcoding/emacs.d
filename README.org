@@ -1348,6 +1348,24 @@ ref:https://github.com/manateelazycat/toggle-one-window
         (require 'acm-terminal))))
 #+end_src
 
+** company 补全
+
+#+begin_src elisp
+  (use-package company
+    :straight t
+    :defer t
+    :bind (:map company-active-map
+                ("TAB" . company-complete-selection)))
+#+end_src
+
+** eglot-booster 加速 eglot
+
+#+begin_src elisp
+  (use-package eglot-booster
+    :straight (eglot-booster :type git :host github :repo "jdtsmith/eglot-booster")
+    :after eglot
+    :config (eglot-booster-mode))
+#+end_src
 
 ** 启动代码服务
 
@@ -2890,8 +2908,7 @@ Wanderlust + offlineimap3 + mu
      '("b" . consult-buffer)
      '("r" . consult-ripgrep)
 
-     '("f" . projectile-find-file)
-     '("p" . projectile-switch-project)
+     '("f" . consult-find)
 
      '("/" . evilnc-comment-or-uncomment-lines)
 

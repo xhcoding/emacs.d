@@ -17,8 +17,8 @@
   )
 
 (define-public emacs-git
-  (let ((commit "7a7491a23eacaae41c07568d833e668ec1d351cf")
-        (revision "1"))
+  (let ((commit "170c6557922dad7e6e9bc0d6dadf6c080108fd42")
+        (revision "2"))
    (package
     (inherit emacs)
     (name "emacs-git")
@@ -31,7 +31,7 @@
              (commit commit)))
        (file-name (git-file-name name version))
        (sha256
-        (base32 "0pf1jz02l3h6da3bw07lg82nxf765s6rrr0r6r779p2ncir37n0p"))
+        (base32 "04carva3b6h9fnlzazrsxsj41hcnjc26kxjij07l159azi40l6sk"))
        (patches
         (search-patches "emacs-next-exec-path.patch"
                         "emacs-fix-scheme-indent-function.patch"

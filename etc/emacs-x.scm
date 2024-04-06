@@ -36,12 +36,7 @@
         (search-patches "emacs-next-exec-path.patch"
                         "emacs-fix-scheme-indent-function.patch"
                         "emacs-next-native-comp-driver-options.patch"
-                        "emacs-pgtk-super-key-fix.patch"))))
-    (arguments
-     (substitute-keyword-arguments
-      (package-arguments emacs)
-      ((#:configure-flags flags #~'())
-       #~(cons* "--with-native-compilation=no" (delete "--with-native-compilation=aot" #$flags))))))))
+                        "emacs-pgtk-super-key-fix.patch")))))))
 
 (define (tree-sitter-delete-generated-files grammar-directories)
   #~(begin

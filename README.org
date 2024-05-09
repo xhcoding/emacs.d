@@ -406,7 +406,7 @@ from: https://github.com/doomemacs/doomemacs/blob/master/lisp/doom-start.el
 #+begin_src elisp
   (defconst sys-is-windows (memq system-type '(cygwin windows-nt ms-dos)))
 
-  (defconst sys-no-windows (not sys-is-windows))
+  (defconst sys-is-wsl2 (getenv "WSLENV"))
 
   ;; 动态库目录
   (defconst my-lib-dir (expand-file-name "lib" user-emacs-directory))
@@ -439,6 +439,18 @@ from: https://github.com/doomemacs/doomemacs/blob/master/lisp/doom-start.el
   (if sys-is-windows
       (defconst my-archives-dir (expand-file-name "D:/Archives"))
     (defconst my-archives-dir (expand-file-name "~/Archives")))
+
+  ;; 数据目录
+  (if sys-is-windows
+      (defconst my-data-dir (expand-file-name "D:/Data"))
+    (if sys-is-wsl2
+        (defconst my-data-dir (expand-file-name "/mnt/d/Data"))
+      (defconst my-data-dir (expand-file-name "~/Data"))))
+
+  (defconst my-notes-dir (expand-file-name "Notes" my-data-dir))
+  (defconst my-blogs-dir (expand-file-name "Blogs" my-data-dir))
+  (defconst my-blogs-org-dir (expand-file-name "org" my-blogs-dir))
+  (defconst my-blogs-image-dir (expand-file-name "images" my-blogs-dir))
 
 #+end_src
 
@@ -2300,7 +2312,6 @@ ref:https://github.com/manateelazycat/toggle-one-window
 #+end_src
 
 ** 知识管理及博客配置
-
 *** denote
 
 #+begin_src elisp
@@ -2308,146 +2319,88 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :ban minimal?
     :straight t
     :custom
-    (denote-directory (expand-file-name "denote" "D:/Code/Test"))
-    (denote-known-keywords '("emacs" "life" "cs"))
-    (denote-org-front-matter
-     "#+title: %1$s
-  ,#+date: %2$s
-  ,#+author: xhcoding
-  ,#+identifier: %4$s
-  ,#+hugo_locale: zh
-  ,#+hugo_tags: %3$s
-  ,#+hugo_categories: %3$s
-  ,#+hugo_draft: true
-
-  "
-  )
-    :bind (("C-c n n" . denote))
-    )
-#+end_src
-
-*** org-roam
-
-#+begin_src emacs-lisp
-  (use-package emacsql-sqlite-builtin
-    :disabled t
-    :straight t
-    :defer t)
-
-  (use-package org-roam
-    :disabled t
-    :straight t
-    :custom
-    (org-roam-directory (expand-file-name "org-roam" my-org-dir))
-    :bind (("C-c n l" . org-roam-buffer-toggle)
-           ("C-c n f" . org-roam-node-find)
-           ("C-c n g" . org-roam-graph)
-           ("C-c n i" . org-roam-node-insert)
-           ("C-c n c" . org-roam-capture)
-           ;; Dailies
-           ("C-c n j" . org-roam-dailies-capture-today))
-    :init
-    (setq org-roam-v2-ack t)
-    (setq org-roam-database-connector 'sqlite-builtin)
+    (denote-directory my-notes-dir)
     :config
-    (org-roam-setup)
+    (defun denote-blog ()
+      "Create blog for publish."
+      (declare (interactive-only t))
+      (interactive)
+      (let ((denote-directory my-blogs-org-dir)
+            (denote-prompts '(title))
+            (denote-org-front-matter
+             "#+title: %1$s
+,#+date: %2$s
+,#+author: xhcoding
+,#+identifier: %4$s
+,#+hugo_locale: zh
+,#+hugo_tags: %3$s
+,#+hugo_categories: %3$s
+,#+hugo_draft: true
 
-    (setq org-roam-capture-templates
-          '(("d" "default" plain "%?"
-             :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
-                                "
-  ,#+title: ${title}
-  ,#+date: %<%Y-%m-%d>
-  ,#+author: xhcoding
-  ,#+hugo_locale: zh
-  ,#+hugo_tags:
-  ,#+hugo_categories:
-  ,#+hugo_draft: false
-  ")
-             :unnarrowed t)))
-    )
-
+"
+             ))
+        (call-interactively #'denote-open-or-create))))
 
 #+end_src
 
 *** hugo 配置
 
 #+begin_src emacs-lisp
-  ;; 博客相关配置
-  (defconst my-blog-root-dir
-    "~/Blog/"
-    "Blog root directory.")
 
-  (defconst my-blog-img-dir
-    (expand-file-name "images/" my-archives-dir)
-    "Blog's image directory.")
+  (if sys-is-windows
+      (defconst my-hugo-root-dir (expand-file-name "D:/Blog"))
+    (if sys-is-wsl2
+        (defconst my-hugo-root-dir (expand-file-name "/mnt/d/Blog"))
+      (defconst my-hugo-root-dir (expand-file-name "~/Blog"))))
 
-  (defconst my-blog-res-url
-    "https://images.xhcoding.cn/blog/"
-    "Blog's source address.")
+  (defconst my-hugo-image-url "https://images.xhcoding.cn/blog/")
 
-  (defconst my-blog-post-url
-    "https://xhcoding.cn/post/"
-    "Blog's post address.")
+  (defconst my-hugo-post-url "https://xhcoding.cn/post/")
 
   (use-package ox-hugo
     :ban minimal?
     :straight t
     :after org
     :custom
-    (org-hugo-base-dir my-blog-root-dir)
+    (org-hugo-base-dir my-hugo-root-dir)
     (org-hugo-section "post")
     (org-hugo-default-section-directory "post")
-    (org-hugo-auto-set-lastmod t)
+  ;;  (org-hugo-auto-set-lastmod t)
     :config
-    (defun my-blog--blog-image-file-path-p (raw-path)
+    (defun my-hugo--blogs-image-path-p (raw-path)
       (let ((file-path (expand-file-name raw-path)))
-        (equal (string-match-p (regexp-quote (expand-file-name my-blog-img-dir)) file-path) 0)))
+        (equal (string-match-p (regexp-quote (expand-file-name my-blogs-image-dir)) file-path) 0)))
 
-    ;; ~/Documents/Blog/images/1.png ==> https://images.xhcoding.cn/1.png
-
-    (defun my-blog--convert-image-url (raw-path)
+    ;; D:/Data/Blogs/images/1.png ==> https://images.xhcoding.cn/blog/1.png
+    (defun my-hugo--image-path-to-url (raw-path)
       (let ((file-path (expand-file-name raw-path)))
-        (concat my-blog-res-url (string-trim-left file-path my-blog-img-dir))))
+        (concat my-hugo-image-url (string-trim-left file-path my-blogs-image-dir))))
 
-    ;; id:xxxxxx ==> https://xhcoding.cn/post/aaaaa
-    (defun my-blog--convert-publish-url (id)
-      (let ((file-name (file-name-base (org-roam-node-file (org-roam-node-from-id id)))))
-        (concat my-blog-post-url file-name)))
-
-    ;; ~/Documents/Blog/images/1.png ==> https://images.xhcoding.cn/1.png
-    ;; id:xxxxxx ==> https://xhcoding.cn/post/aaaaa
-    (defun my-blog*export-blog-url (args)
+    ;; D:/Data/Blogs/images/1.png ==> https://images.xhcoding.cn/blog/1.png
+    (defun my-hugo*convert-path-to-url (args)
       (let* ((link (nth 0 args))
              (desc (nth 1 args))
              (info (nth 2 args))
              (type (org-element-property :type link))
              (raw-path (org-element-property :path link)))
         (cond
-         ((and (string-equal type "file") (my-blog--blog-image-file-path-p raw-path))
+         ((and (string-equal type "file") (my-hugo--blogs-image-path-p raw-path))
           (progn
             (let* ((image-url (my-blog--convert-image-url raw-path))
                    (new-link (org-element-put-property link :path image-url )))
               `(,new-link ,desc ,info))))
-         ((string-equal type "id")
-          (progn
-            (let* ((post-url (my-blog--convert-publish-url raw-path))
-                   (new-link))
-              (setq new-link (org-element-put-property link :path post-url))
-              (setq new-link (org-element-put-property new-link :type "file"))
-              `(,new-link ,desc, info))))
          (t `(,link ,desc ,info))
          )))
 
-    (advice-add #'org-hugo-link :filter-args #'my-blog*export-blog-url)
+    (advice-add #'org-hugo-link :filter-args #'my-hugo*convert-path-to-url)
 
-    ;; front matter author => authors
-    (defun my-blog*convert-author-to-authors(front-matter)
-      "Convert author to authors."
-      (let ((ret (replace-regexp-in-string "author" "authors" front-matter)))
-        ret))
+    ;; ;; front matter author => authors
+    ;; (defun my-blog*convert-author-to-authors(front-matter)
+    ;;   "Convert author to authors."
+    ;;   (let ((ret (replace-regexp-in-string "author" "authors" front-matter)))
+    ;;     ret))
 
-    (advice-add #'org-hugo--get-front-matter :filter-return #'my-blog*convert-author-to-authors)
+    ;; (advice-add #'org-hugo--get-front-matter :filter-return #'my-blog*convert-author-to-authors)
     )
 
   (use-package easy-hugo
@@ -2455,26 +2408,10 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :straight t
     :defer t
     :config
-    (require 'org-roam)
-    (setq easy-hugo-basedir (expand-file-name my-blog-root-dir)
-          easy-hugo-postdir (expand-file-name org-roam-directory)
+    (setq easy-hugo-basedir (expand-file-name my-hugo-root-dir)
+          easy-hugo-postdir (expand-file-name my-blogs-org-dir)
           easy-hugo-org-header t
           easy-hugo-github-deploy-script "deploy.bat"))
-
-#+end_src
-
-*** 上传博客图片到腾讯云对象存储
-
-#+begin_src emacs-lisp
-  (defun my-blog/upload-images-to-tencent-cos ()
-    "Upload blog images dir to tencent cos."
-    (interactive)
-    (call-process-shell-command
-     (concat
-      "coscmd upload -rs "
-      my-blog-img-dir
-      " blog/"
-      )))
 
 #+end_src
 

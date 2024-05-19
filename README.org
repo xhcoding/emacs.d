@@ -676,9 +676,9 @@ ref: https://github.com/manateelazycat/auto-save
     :defer t
     :bind ("C-j" . rime-force-enable)
     :init
-    (setq rime--module-path
-          (expand-file-name (concat "librime-emacs" module-file-suffix) my-lib-dir))
     (when sys-is-windows
+      (setq rime--module-path
+            (expand-file-name (concat "librime-emacs" module-file-suffix) my-lib-dir))
       (setq rime-share-data-dir (expand-file-name "rime-data" my-etc-dir)))
 
     (defun my-*require-rime(&rest _)
@@ -716,7 +716,9 @@ ref: https://github.com/manateelazycat/auto-save
     (fixed-pitch
      ((t (:inherit default))))
     :config
-    (set-fontset-font t 'emoji (font-spec :family "Segoe UI Symbol"))
+    (set-fontset-font t 'symbol (font-spec :family "Segoe UI Symbol"))
+
+    (set-fontset-font t 'emoji (font-spec :family "Segoe UI Emoji"))
 
     (set-fontset-font t 'chinese-gbk (font-spec :family "微软雅黑"))
 
@@ -2315,31 +2317,49 @@ ref:https://github.com/manateelazycat/toggle-one-window
 *** denote
 
 #+begin_src elisp
-  (use-package denote
-    :ban minimal?
-    :straight t
-    :custom
-    (denote-directory my-notes-dir)
-    :config
-    (defun denote-blog ()
-      "Create blog for publish."
-      (declare (interactive-only t))
-      (interactive)
-      (let ((denote-directory my-blogs-org-dir)
-            (denote-prompts '(title))
-            (denote-org-front-matter
-             "#+title: %1$s
-,#+date: %2$s
-,#+author: xhcoding
-,#+identifier: %4$s
-,#+hugo_locale: zh
-,#+hugo_tags: %3$s
-,#+hugo_categories: %3$s
-,#+hugo_draft: true
+    (use-package denote
+      :ban minimal?
+      :straight t
+      :custom
+      (denote-directory my-notes-dir)
+      :config
+      (defun denote-blog ()
+        "Create blog for publish."
+        (declare (interactive-only t))
+        (interactive)
+        (let ((denote-directory my-blogs-org-dir)
+              (denote-prompts '(title))
+              (denote-org-front-matter
+               "#+title: %1$s
+  ,#+date: %2$s
+  ,#+author: xhcoding
+  ,#+identifier: %4$s
+  ,#+hugo_locale: zh
+  ,#+hugo_tags: %3$s
+  ,#+hugo_categories: %3$s
+  ,#+hugo_draft: false
 
-"
-             ))
-        (call-interactively #'denote-open-or-create))))
+  "
+               ))
+          (call-interactively #'denote-open-or-create)))
+
+      (defun denote-blog-image-insert (file)
+        "Insert image file to blog."
+        (declare (interactive-only t))
+        (interactive "fImage file: ")
+        (let* ((blog-file-title (denote-retrieve-filename-title (buffer-file-name)))
+               (blog-image-dir (concat (expand-file-name blog-file-title my-blogs-image-dir) "/"))
+                    (blog-image-ext (concat "." (file-name-extension file)))
+                    (blog-default-image-title (concat blog-file-title (format-time-string "-%H%M%S")))
+                    (blog-image-title (read-string "Image title: " "" nil blog-default-image-title))
+                    (blog-image-new-name (denote-format-file-name blog-image-dir (denote-get-identifier) nil blog-image-title blog-image-ext nil)))
+
+          (unless (file-directory-p blog-image-dir)
+            (make-directory blog-image-dir t))
+          (copy-file file blog-image-new-name)
+          (org-insert-link "" (concat "file:" blog-image-new-name) "")
+          ))
+      )
 
 #+end_src
 
@@ -2353,7 +2373,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
         (defconst my-hugo-root-dir (expand-file-name "/mnt/d/Blog"))
       (defconst my-hugo-root-dir (expand-file-name "~/Blog"))))
 
-  (defconst my-hugo-image-url "https://images.xhcoding.cn/blog/")
+  (defconst my-hugo-image-url "https://images.xhcoding.cn/blog")
 
   (defconst my-hugo-post-url "https://xhcoding.cn/post/")
 
@@ -2386,7 +2406,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
         (cond
          ((and (string-equal type "file") (my-hugo--blogs-image-path-p raw-path))
           (progn
-            (let* ((image-url (my-blog--convert-image-url raw-path))
+            (let* ((image-url (my-hugo--image-path-to-url raw-path))
                    (new-link (org-element-put-property link :path image-url )))
               `(,new-link ,desc ,info))))
          (t `(,link ,desc ,info))
@@ -2394,13 +2414,15 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
     (advice-add #'org-hugo-link :filter-args #'my-hugo*convert-path-to-url)
 
-    ;; ;; front matter author => authors
-    ;; (defun my-blog*convert-author-to-authors(front-matter)
-    ;;   "Convert author to authors."
-    ;;   (let ((ret (replace-regexp-in-string "author" "authors" front-matter)))
-    ;;     ret))
+    (defun my/hugo-export-all-blogs ()
+      "Export all blogs."
+      (interactive)
+      (dolist (file (directory-files my-blogs-org-dir))
+        (when (string-equal "org" (file-name-extension file))
+          (with-temp-buffer
+            (find-file (expand-file-name file my-blogs-org-dir))
+            (org-hugo-export-to-md)))))
 
-    ;; (advice-add #'org-hugo--get-front-matter :filter-return #'my-blog*convert-author-to-authors)
     )
 
   (use-package easy-hugo
@@ -2431,6 +2453,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package org-download
+    :disabled t
     :ban minimal?
     :straight t
     :after org
@@ -2503,6 +2526,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 #+begin_src elisp
   (use-package eaf
     :ban minimal?
+    :disabled t
     :straight (emacs-application-framework :type git :host github :repo "emacs-eaf/emacs-application-framework"
                           :files ("*")
                           :build nil)
@@ -2535,6 +2559,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package popweb
+    :disabled t
     :ban minimal?
     :straight (popweb :type git :host github :repo "manateelazycat/popweb" :build nil)
     :commands (popweb-dict-eudic-input popweb-import-browser-cookies)
@@ -2563,17 +2588,20 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package websocket
+    :disabled t
     :ban minimal?
     :straight t
     :defer t)
 
   (use-package websocket-bridge
+    :disabled t
     :ban minimal?
     :straight (websocket-bridge :type git :host github :repo "ginqi7/websocket-bridge")
     :defer t)
 
 
   (use-package dictionary-overlay
+    :disabled t
     :ban minimal?
     :straight (dictionary-overlay :type git :host github :repo "ginqi7/dictionary-overlay"
                                   :build nil)
@@ -2592,6 +2620,7 @@ Wanderlust + offlineimap3 + mu
 
 #+begin_src emacs-lisp
   (use-package wl
+    :disabled t
     :ban minimal?
     :straight (wanderlust)
     :defer t
@@ -2670,7 +2699,7 @@ Wanderlust + offlineimap3 + mu
 
 #+begin_src emacs-lisp
   (when full?
-    
+
     (defun my-*require-wanderlust (&rest _)
       (require 'wl))
 
@@ -2681,6 +2710,7 @@ Wanderlust + offlineimap3 + mu
 
 #+begin_src emacs-lisp
   (use-package alert-toast
+    :disabled t
     :ban minimal?
     :straight t
     :after wl
@@ -2755,6 +2785,7 @@ Wanderlust + offlineimap3 + mu
 
 #+begin_src elisp
   (use-package tex
+    :disabled t
     :ban minimal?
     :straight (auctex)
     :defer t
@@ -2768,6 +2799,11 @@ Wanderlust + offlineimap3 + mu
 
 #+begin_src elisp
   (use-package async-await
+    :ban minimal?
+    :straight t
+    :defer t)
+
+  (use-package websocket
     :ban minimal?
     :straight t
     :defer t)
@@ -2948,4 +2984,3 @@ Wanderlust + offlineimap3 + mu
     (load (expand-file-name "config.el" my-private-dir)))
 
 #+end_src
-

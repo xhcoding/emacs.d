@@ -4,10 +4,12 @@
 #+html:	<a href="https://github.com/emacs-mirror/emacs"><img src="https://img.shields.io/badge/GNU%20Emacs-master-b48ead.svg?style=flat-square"/></a>
 #+html:    <a href ="https://github.com/xhcoding/.emacs.d"><img src="https://img.shields.io/badge/-Windows11-1e81ff?logo=windows&style=flat"/></a>
 #+html: </p>
-#+html: <p align="center">A simple Emacs config on Windows</p>
+#+html: <p align="center">A simple Emacs config on Windows/WSL/Linux</p>
 
 
 * 安装方法
+
+** Windows
 
 1. 下载配置文件
    #+begin_src shell
@@ -16,6 +18,18 @@
 2. 运行 =org-tangle.bat= 生成 =.el= 文件
 
 3. 启动 emacs
+
+** Linux
+
+*** guix pack
+
+1. 下载 Release 里面的 =emacs-x-minimal-x86_64-linux-installer.run= 安装包
+
+2. 添加可执行权限 =chmod +x emacs-x-minimal-x86_64-linux-installer.run=
+
+3. 执行 =./emacs-x-minimal-x86_64-linux-installer.run= 将 emacs 安装到 =/opt= 目录下
+
+4. =emacs-x= 启动 emacs
 
 * 目录                                                                  :TOC:
 - [[#安装方法][安装方法]]

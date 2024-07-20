@@ -417,28 +417,13 @@ from: https://github.com/doomemacs/doomemacs/blob/master/lisp/doom-start.el
   ;; 将 my-bin-dir 加入到 PATH 中
   (setenv "PATH" (concat my-bin-dir (if sys-is-windows ";" ":") (getenv "PATH")))
 
-
   ;; 外部配置文件目录
   (defconst my-etc-dir (expand-file-name "etc" user-emacs-directory))
-
-  ;; 存放 org 文件的目录
-  (defconst my-org-dir (expand-file-name "~/Org/"))
-
-  ;; 私有文件目录
-  (defconst my-private-dir (expand-file-name "private" my-org-dir))
-
-  ;; 私有代码片段目录
-  (defconst my-private-snippets-dir (expand-file-name "snippets" my-private-dir))
 
   ;; 存放代码的目录
   (if sys-is-windows
       (defconst my-code-dir (expand-file-name "D:/Code"))
     (defconst my-code-dir (expand-file-name "~/Code")))
-
-  ;; 存放一些存档文件的目录
-  (if sys-is-windows
-      (defconst my-archives-dir (expand-file-name "D:/Archives"))
-    (defconst my-archives-dir (expand-file-name "~/Archives")))
 
   ;; 数据目录
   (if sys-is-windows
@@ -447,10 +432,24 @@ from: https://github.com/doomemacs/doomemacs/blob/master/lisp/doom-start.el
         (defconst my-data-dir (expand-file-name "/mnt/d/Data"))
       (defconst my-data-dir (expand-file-name "~/Data"))))
 
+  ;; 笔记目录
   (defconst my-notes-dir (expand-file-name "Notes" my-data-dir))
+
+  ;; 博客相关目录
   (defconst my-blogs-dir (expand-file-name "Blogs" my-data-dir))
   (defconst my-blogs-org-dir (expand-file-name "org" my-blogs-dir))
   (defconst my-blogs-image-dir (expand-file-name "images" my-blogs-dir))
+
+  ;; Org 相关目录
+  (defconst my-org-dir (expand-file-name "Org" my-data-dir))
+
+  ;; 私有文件目录
+  (defconst my-private-dir (expand-file-name "Private" my-org-dir))
+
+  ;; 私有代码片段目录
+  (defconst my-private-snippets-dir (expand-file-name "snippets" my-private-dir))
+
+
 
 #+end_src
 
@@ -2235,25 +2234,57 @@ ref:https://github.com/manateelazycat/toggle-one-window
 *** gtd 配置
 
 #+begin_src elisp
-  (use-package org-gtd
+  (use-package :org
     :ban minimal?
-    :straight t
-    :after org
-    :bind (("C-c d c" . org-gtd-capture)
-           ("C-c d e" . org-gtd-engage)
-           ("C-c d p" . org-gtd-process-inbox)
-           ("C-c d n" . org-gtd-show-all-next)
-           ("C-c d s" . org-gtd-review-stuck-projects)
-           :map org-gtd-clarify-map
-           ("C-c c" . org-gtd-organize))
+    :defer t
+    :bind (("C-c a" . org-agenda)
+           ("C-c c" . org-capture))
     :init
-    (setq org-gtd-update-ack "3.0.0")
+    (setq my-org-gtd-dir (expand-file-name "Gtd" my-org-dir)
+          my-org-inbox-file (expand-file-name "inbox.org" my-org-gtd-dir)
+          my-org-projects-file (expand-file-name "projects.org" my-org-gtd-dir))
+
+    (defun my-org--verify-refile-target ()
+      "Exclude todo keywords with a done state from refile targets."
+      (not (member (nth 2 (org-heading-components)) org-done-keywords)))
+     
     :custom
-    (org-gtd-directory (expand-file-name "gtd" my-org-dir))
-    :config
-    (org-gtd-mode +1)
-    (setq org-edna-use-inheritance t)
-    (org-edna-mode +1))
+    (org-agenda-files `(,my-org-inbox-file ,my-org-projects-file))
+    (org-capture-templates `(("i" "Inbox" entry
+                              (file ,my-org-inbox-file)
+                              ,(concat "* TODO %?\n"
+                                       "/Entered on/ %U"))))
+    (org-todo-keywords
+     '((sequence "TODO(t)" "NEXT(n)" "HOLD(h)" "|" "DONE(d)" "CANCELLED(c)")))
+
+    (org-refile-targets '((nil :maxlevel . 9)
+                          (org-agenda-files :maxlevel . 9)))
+
+    (org-refile-use-outline-path t)
+    (org-outline-path-complete-in-steps nil)
+    (org-refile-allow-creating-parent-nodes 'confirm)
+
+    (org-refile-target-verify-function 'my-org--verify-refile-target)
+
+    (org-agenda-span 'day)
+    (org-agenda-hide-tags-regexp ".")
+    (org-agenda-prefix-format
+     '((agenda . " %i %-12:c%?-12t% s")
+       (todo   . " ")
+       (tags   . " %i %-12:c")
+       (search . " %i %-12:c")))
+
+    (org-agenda-custom-commands
+     '(("g" "Get Things Done (GTD)"
+        ((agenda "" ((org-deadline-warning-days 0)))
+         (todo "NEXT"
+               ((org-agenda-prefix-format "  %i %-12:c ")
+                (org-agenda-overriding-header "\nTasks\n")))
+         (tags-todo "inbox"
+                    ((org-agenda-prefix-format "  %?-12t% s")
+                     (org-agenda-overriding-header "\nInbox\n")))))))
+
+    )
 #+end_src
 
 *** export 设置

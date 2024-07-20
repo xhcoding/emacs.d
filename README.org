@@ -1300,7 +1300,6 @@ ref:https://github.com/manateelazycat/toggle-one-window
 #+begin_src elisp
 
   (use-package lsp-bridge
-    :disabled t
     :straight (lsp-bridge :type git :host github :repo "manateelazycat/lsp-bridge"
                           :files ("*")
                           :build nil)
@@ -1365,11 +1364,9 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package popon
-    :disabled t
     :straight t
     :defer t)
   (use-package acm-terminal
-    :disabled t
     :defer t
     :straight (acm-terminal :type git :host github :repo "twlz0ne/acm-terminal")
     :init
@@ -1403,8 +1400,13 @@ ref:https://github.com/manateelazycat/toggle-one-window
   (defun my-enable-code-service ()
     (require 'yasnippet)
     (yas-minor-mode)
-    (company-mode)
-    (eglot-ensure))
+    (if (getenv "EMACS_USE_EGLOT")
+        (progn
+          (company-mode)
+          (eglot-ensure)
+          )
+      (require 'lsp-bridge)
+      (lsp-bridge-mode)))
 #+end_src
 
 ** highlight-parentheses 高亮外层括号

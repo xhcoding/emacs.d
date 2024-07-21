@@ -439,6 +439,19 @@ from: https://github.com/doomemacs/doomemacs/blob/master/lisp/doom-start.el
       (defconst my-code-dir (expand-file-name "D:/Code"))
     (defconst my-code-dir (expand-file-name "~/Code")))
 
+  ;; 开源代码
+  (defconst my-code-opensource-dir (expand-file-name "Github" my-code-dir))
+
+  ;; 工作代码
+  (defconst my-code-work-dir (expand-file-name "Work" my-code-dir))
+
+  ;; 个人项目代码
+  (defconst my-code-project-dir (expand-file-name "Project" my-code-dir))
+
+  ;; 练习代码或实例代码，这里面一般根据语言再分一层
+  (defconst my-code-demo-dir (expand-file-name "Demo" my-code-dir))
+
+
   ;; 数据目录
   (if sys-is-windows
       (defconst my-data-dir (expand-file-name "D:/Data"))

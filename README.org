@@ -469,10 +469,10 @@ from: https://github.com/doomemacs/doomemacs/blob/master/lisp/doom-start.el
 
   ;; Org 相关目录
   (if sys-is-windows
-      (defconst my-data-dir (expand-file-name "D:/Org"))
+      (defconst my-org-dir (expand-file-name "D:/Org"))
     (if sys-is-wsl2
-        (defconst my-data-dir (expand-file-name "/mnt/d/Org"))
-      (defconst my-data-dir (expand-file-name "~/Org"))))
+        (defconst my-org-dir (expand-file-name "/mnt/d/Org"))
+      (defconst my-org-dir (expand-file-name "~/Org"))))
 
   ;; 私有文件目录
   (defconst my-private-dir (expand-file-name "Private" my-org-dir))

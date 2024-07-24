@@ -468,7 +468,11 @@ from: https://github.com/doomemacs/doomemacs/blob/master/lisp/doom-start.el
   (defconst my-blogs-image-dir (expand-file-name "images" my-blogs-dir))
 
   ;; Org 相关目录
-  (defconst my-org-dir (expand-file-name "Org" my-data-dir))
+  (if sys-is-windows
+      (defconst my-data-dir (expand-file-name "D:/Org"))
+    (if sys-is-wsl2
+        (defconst my-data-dir (expand-file-name "/mnt/d/Org"))
+      (defconst my-data-dir (expand-file-name "~/Org"))))
 
   ;; 私有文件目录
   (defconst my-private-dir (expand-file-name "Private" my-org-dir))

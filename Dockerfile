@@ -8,7 +8,7 @@ ENV LANG=zh_CN.utf8
 # install deps
 RUN apt update && apt install -y \
     git build-essential autoconf texinfo pkg-config \
-    libgnutls28-dev gnutls-bin libncurses-dev libsqlite3-dev libselinux-dev dbus libtree-sitter-dev zlib1g-dev libsystemd-dev emacs-nox
+    libgnutls28-dev gnutls-bin libncurses-dev libsqlite3-dev libselinux-dev dbus libtree-sitter-dev zlib1g-dev libsystemd-dev
 
 WORKDIR /tmp
 # build emacs

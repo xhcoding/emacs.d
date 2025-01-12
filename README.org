@@ -736,6 +736,7 @@ ref: https://github.com/manateelazycat/auto-save
 
 #+begin_src elisp
   (use-package faces
+    :disabled
     :ban minimal?
     :custom-face
     (variable-pitch
@@ -755,7 +756,7 @@ ref: https://github.com/manateelazycat/auto-save
     )
 
 
-  (load-theme 'modus-operandi-tinted :no-confirm)
+  ;;(load-theme 'modus-operandi-tinted :no-confirm)
 #+end_src
 
 ** ligature 连字体
@@ -1693,6 +1694,19 @@ ref:https://github.com/manateelazycat/toggle-one-window
           (yaml . ("https://github.com/ikatyang/tree-sitter-yaml"))
           (toml . ("https://github.com/tree-sitter/tree-sitter-toml"))
           (zig . ("https://github.com/GrayJack/tree-sitter-zig"))))
+
+  (defun my-treesit-install-langs (langs)
+    ""
+    (dolist (lang langs)
+      (let* ((out-dir (locate-user-emacs-file "tree-sitter"))
+             (soext (car dynamic-library-suffixes))
+             (lib-name (concat "libtree-sitter-" (symbol-name lang) soext))
+             (lib-path (expand-file-name lib-name out-dir)))
+             (unless (file-exists-p lib-path)
+               (treesit-install-language-grammar lang)))))
+
+  (unless sys-is-windows
+    (my-treesit-install-langs '(bash c cpp cmake dockerfile elisp json python rust yaml)))
 #+end_src
 
 ** elisp 配置

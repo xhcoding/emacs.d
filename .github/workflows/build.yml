@@ -6,29 +6,26 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-        arch: [amd64, arm64]
+    runs-on: ubuntu-latest
     steps:
-      - name: Set environment variables
-        run: |
-           if [ "${{ matrix.arch }}" = "amd64" ]; then
-             export ARCH=amd64
-           elif [ "${{ matrix.arch }}" = "arm64" ]; then
-             export ARCH=arm64
-           fi
-           echo "ARCH=$ARCH" >> $GITHUB_ENV
-
       - name: Checkout
         uses: actions/checkout@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build docker
-        run: docker build -t emacs-ubuntu-docker-image:latest .
+        uses: docker/build-push-action@v6
+        with:
+          push: false
+          platforms: linux/amd64,linux/arm64
+          tags: emacs-ubuntu-docker-image:latest
 
       - name: Save docker
         run: docker save emacs-ubuntu-docker-image:latest | gzip > emacs-ubuntu-docker-image-${ARCH}.tar.gz
@@ -37,4 +34,4 @@ jobs:
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-            files: emacs-ubuntu-docker-image-*.*
+            files: emacs-ubuntu-docker-image.*

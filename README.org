@@ -735,28 +735,52 @@ ref: https://github.com/manateelazycat/auto-save
 ** 字体和主题
 
 #+begin_src elisp
-  (use-package faces
-    :disabled
-    :ban minimal?
-    :custom-face
-    (variable-pitch
-     ((t (:font ,(font-xlfd-name (font-spec :family "Alegreya"))))))
-    (default
-     ((t (:font ,(font-xlfd-name (font-spec :family "CaskaydiaCove NFP"))
-                :height 120))))
-    (fixed-pitch
-     ((t (:inherit default))))
-    :config
-    (set-fontset-font t 'symbol (font-spec :family "Segoe UI Symbol"))
+  (defun my-font-installed-p (font-name)
+    "Check if font with FONT-NAME is available."
+    (find-font (font-spec :name font-name)))
 
-    (set-fontset-font t 'emoji (font-spec :family "Segoe UI Emoji"))
+  (defun my-setup-fonts ()
+    "Setup fonts."
+    (when (display-graphic-p)
+      ;; Set default font
+      (cl-loop for font in '("CaskaydiaCove NFP" "Fira Code" "Jetbrains Mono"
+                             "SF Mono" "Hack" "Source Code Pro" "Menlo"
+                             "Monaco" "DejaVu Sans Mono" "Consolas")
+               when (my-font-installed-p font)
+               return (set-face-attribute 'default nil
+                                          :family font
+                                          :height 120))
 
-    (set-fontset-font t 'chinese-gbk (font-spec :family "微软雅黑"))
+      ;; Specify font for all unicode characters
+      (cl-loop for font in '("Segoe UI Emoji" "Apple Symbols" "Symbola" "Symbol")
+               when (my-font-installed-p font)
+               return (set-fontset-font t 'symbol (font-spec :family font) nil 'prepend))
 
-    )
+      ;; Emoji
+      (cl-loop for font in '("Segoe UI Emoji" "Noto Color Emoji" "Apple Color Emoji")
+               when (my-font-installed-p font)
+               return (set-fontset-font t
+                                        (if (< emacs-major-version 28)'symbol 'emoji)
+                                        (font-spec :family font) nil 'prepend))
 
+      ;; Specify font for Chinese characters
+      (cl-loop for font in '("微软雅黑" "WenQuanYi Micro Hei Mono")
+               when (my-font-installed-p font)
+               return (set-fontset-font t 'han (font-spec :family font)))))
 
-  ;;(load-theme 'modus-operandi-tinted :no-confirm)
+  (my-setup-fonts)
+  (add-hook 'window-setup-hook #'my-setup-fonts)
+  (add-hook 'server-after-make-frame-hook #'my-setup-fonts)
+
+  (ignore-errors
+    (load-theme 'modus-operandi-tinted :no-confirm))
+
+  (use-package nerd-icons
+    :straight t
+    :init
+    (cl-loop for font in '("CaskaydiaCove NFP" "Symbols Nerd Font Mono")
+             when (my-font-installed-p font)
+             return (setq nerd-icons-font-family font)))
 #+end_src
 
 ** ligature 连字体
@@ -2119,19 +2143,20 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (org-use-sub-superscripts '{})
     :config
 
-    (create-fontset-from-fontset-spec
-     (font-xlfd-name
-      (font-spec :family "等距更纱黑体 SC"
-                 :weight 'regular
-                 :slant 'normal
-                 :registry "fontset-orgtable")))
+    (when (my-font-installed-p "等距更纱黑体 SC")
+      (create-fontset-from-fontset-spec
+       (font-xlfd-name
+        (font-spec :family "等距更纱黑体 SC"
+                   :weight 'regular
+                   :slant 'normal
+                   :registry "fontset-orgtable")))
 
-    (set-fontset-font "fontset-orgtable" '(#x0 . #xffff)
-                      (font-spec :family "等距更纱黑体 SC"
-                                 :weight 'regular
-                                 :slant 'normal))
+      (set-fontset-font "fontset-orgtable" '(#x0 . #xffff)
+                        (font-spec :family "等距更纱黑体 SC"
+                                   :weight 'regular
+                                   :slant 'normal))
 
-    (set-face-attribute 'org-table nil :fontset "fontset-orgtable" :font "fontset-orgtable")
+      (set-face-attribute 'org-table nil :fontset "fontset-orgtable" :font "fontset-orgtable"))
 
     (defun my--org-prettify-symbols ()
       (setq prettify-symbols-alist

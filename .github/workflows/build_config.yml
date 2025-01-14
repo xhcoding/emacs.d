@@ -12,9 +12,10 @@ jobs:
         run: sudo apt update && sudo apt install -y git emacs-nox zip
 
       - name: Build
-        run: git clone https://github.com/xhcoding/emacs.d.git ~/.emacs.d && \
-             cd ~/.emacs.d/ && \
-             emacs -Q --batch -l org --eval "(org-babel-tangle-file \"README.org\")" && \
+        run: |
+             git clone https://github.com/xhcoding/emacs.d.git ~/.emacs.d; \
+             cd ~/.emacs.d/; \
+             emacs -Q --batch -l org --eval "(org-babel-tangle-file \"README.org\")"; \
              emacs --batch --load ~/.emacs.d/early-init.el --load ~/.emacs.d/init.el
 
       - name: Zip

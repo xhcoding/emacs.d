@@ -1485,6 +1485,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
                      :files ("lisp/magit"
                              "lisp/magit*.el"
                              "lisp/git-rebase.el"
+                             "lisp/git-commit.el"
                              "docs/magit.texi"
                              "docs/AUTHORS.md"
                              "LICENSE"

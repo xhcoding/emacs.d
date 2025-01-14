@@ -1,0 +1,27 @@
+name: build
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install
+        run: apt update && apt install -y git emacs-nox zip
+
+      - name: Build
+        run: git clone https://github.com/xhcoding/emacs.d.git ~/.emacs.d && \
+             cd ~/.emacs.d/ && \
+             emacs -Q --batch -l org --eval "(org-babel-tangle-file \"README.org\")" && \
+             emacs --batch --load ~/.emacs.d/early-init.el --load ~/.emacs.d/init.el
+
+      - name: Zip
+        run: zip -r emacs.d.zip ~/.emacs.d
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+            files: emacs.d.zip

@@ -1090,7 +1090,8 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :straight t
     :defer t
     :config
-    (add-to-list 'yas-snippet-dirs my-private-snippets-dir)
+    (when (file-directory-p my-private-snippets-dir)
+      (add-to-list 'yas-snippet-dirs my-private-snippets-dir))
     (yas-reload-all))
 
   (use-package yasnippet-snippets

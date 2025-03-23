@@ -26,3 +26,5 @@ org-roam.db
 /cmake-tools
 aichat*
 /debug-adapters
+/recentf.eld
+/tramp

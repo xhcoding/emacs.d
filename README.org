@@ -1396,6 +1396,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (setq lsp-bridge-user-langserver-dir my-etc-dir
           lsp-bridge-user-multiserver-dir my-etc-dir)
 
+    (setq lsp-bridge-cmake-lsp-server "neocmakelsp")
 
     (setq acm-enable-tabnine nil
           acm-enable-quick-access t
@@ -1752,6 +1753,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src emacs-lisp
   (use-package cmake-ts-mode
+    :mode "\\CMakeLists.txt\\'"
     :hook (cmake-ts-mode . my-enable-code-service))
 #+end_src
 

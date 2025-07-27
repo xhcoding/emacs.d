@@ -1857,6 +1857,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package rust-ts-mode
+    :mode "\\.rs\\'"
     :hook (rust-ts-mode . my-enable-code-service))
 #+end_src
 

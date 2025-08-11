@@ -2493,7 +2493,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (org-hugo-base-dir my-hugo-root-dir)
     (org-hugo-section "post")
     (org-hugo-default-section-directory "post")
-  ;;  (org-hugo-auto-set-lastmod t)
+    ;;  (org-hugo-auto-set-lastmod t)
     :config
     (defun my-hugo--blogs-image-path-p (raw-path)
       (let ((file-path (expand-file-name raw-path)))
@@ -2521,6 +2521,20 @@ ref:https://github.com/manateelazycat/toggle-one-window
          )))
 
     (advice-add #'org-hugo-link :filter-args #'my-hugo*convert-path-to-url)
+
+    (defun my-hugo*author-to-authors(args)
+      (let* ((data (nth 0 args))
+             (info (nth 1 args))
+             (repl-str (plist-get info :hugo-front-matter-key-replace))
+             (repl-author "author>authors"))
+        (message "%s" repl-str)
+        (if repl-str
+            (unless (string-match-p repl-author repl-str)
+              (plist-put info :hugo-front-matter-key-replace (concat repl-str " " repl-author)))
+          (plist-put info :hugo-front-matter-key-replace repl-author))
+        `(,data ,info)))
+
+    (advice-add #'org-hugo--replace-keys-maybe :filter-args #'my-hugo*author-to-authors)
 
     (defun my/hugo-export-all-blogs ()
       "Export all blogs."

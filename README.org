@@ -743,7 +743,7 @@ ref: https://github.com/manateelazycat/auto-save
     "Setup fonts."
     (when (display-graphic-p)
       ;; Set default font
-      (cl-loop for font in '("CaskaydiaCove NFP" "Fira Code" "Jetbrains Mono"
+      (cl-loop for font in '("CaskaydiaCove NFM" "Fira Code" "Jetbrains Mono"
                              "SF Mono" "Hack" "Source Code Pro" "Menlo"
                              "Monaco" "DejaVu Sans Mono" "Consolas")
                when (my-font-installed-p font)
@@ -778,7 +778,7 @@ ref: https://github.com/manateelazycat/auto-save
   (use-package nerd-icons
     :straight t
     :init
-    (cl-loop for font in '("CaskaydiaCove NFP" "Symbols Nerd Font Mono")
+    (cl-loop for font in '("CaskaydiaCove NFM" "Symbols Nerd Font Mono")
              when (my-font-installed-p font)
              return (setq nerd-icons-font-family font)))
 #+end_src
@@ -1282,6 +1282,13 @@ ref:https://github.com/manateelazycat/toggle-one-window
     )
 #+end_src
 
+** emacs-libvterm
+#+begin_src elisp
+  (use-package vterm
+    :straight (vterm :type git :host github :repo "xhcoding/emacs-libvterm")
+    :config
+    (setq vterm-shell "pwsh.exe"))
+#+end_src
 ** fingertip 智能括号插入
 
 #+begin_src emacs-lisp

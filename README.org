@@ -336,7 +336,7 @@ from: https://github.com/doomemacs/doomemacs/blob/master/lisp/doom-start.el
                        (< (float-time idle-time) doom-incremental-first-idle-timer)
                        (not
                         (while-no-input
-                          (message "start:iloader: Loading %s (%d left)" req (length packages))
+                          ;;(message "start:iloader: Loading %s (%d left)" req (length packages))
                           ;; If `default-directory' doesn't exist or is
                           ;; unreadable, Emacs throws file errors.
                           (let ((default-directory user-emacs-directory)
@@ -454,26 +454,29 @@ from: https://github.com/doomemacs/doomemacs/blob/master/lisp/doom-start.el
 
   ;; 数据目录
   (if sys-is-windows
-      (defconst my-data-dir (expand-file-name "D:/BaiduSyncdisk"))
+      (defconst my-docs-dir (expand-file-name "D:/Docs"))
     (if sys-is-wsl2
-        (defconst my-data-dir (expand-file-name "/mnt/d/BaiduSyncdisk"))
-      (defconst my-data-dir (expand-file-name "~/BaiduSyncdisk"))))
+        (defconst my-docs-dir (expand-file-name "/mnt/d/Docs"))
+      (defconst my-docs-dir (expand-file-name "~/Docs"))))
 
   ;; 笔记目录
-  (defconst my-notes-dir (expand-file-name "Notes" my-data-dir))
+  (defconst my-notes-dir (expand-file-name "Notes" my-docs-dir))
 
   ;; 博客相关目录
-  (defconst my-blogs-dir (expand-file-name "Blogs" my-data-dir))
+  (if sys-is-windows
+    (defconst my-blogs-dir (expand-file-name "D:/BaiduSyncdisk/Blogs"))
+  (if sys-is-wsl2
+      (defconst my-blogs-dir (expand-file-name "/mnt/d/BaiduSyncdisk/Blogs"))
+    (defconst my-blogs-dir (expand-file-name "~/BaiduSyncdisk/Blogs"))))
   (defconst my-blogs-org-dir (expand-file-name "org" my-blogs-dir))
   (defconst my-blogs-image-dir (expand-file-name "images" my-blogs-dir))
 
   ;; Org 相关目录
   (if sys-is-windows
-      (defconst my-org-dir (expand-file-name "D:/Org"))
+      (defconst my-org-dir (expand-file-name "Org" my-docs-dir))
     (if sys-is-wsl2
-        (defconst my-org-dir (expand-file-name "/mnt/d/Org"))
-      (defconst my-org-dir (expand-file-name "~/Org"))))
-
+        (defconst my-org-dir (expand-file-name "Org" my-docs-dir))
+      (defconst my-org-dir (expand-file-name "Org" my-docs-dir))))
   ;; 私有文件目录
   (defconst my-private-dir (expand-file-name "Private" my-org-dir))
 
@@ -772,8 +775,15 @@ ref: https://github.com/manateelazycat/auto-save
   (add-hook 'window-setup-hook #'my-setup-fonts)
   (add-hook 'server-after-make-frame-hook #'my-setup-fonts)
 
-  (ignore-errors
-    (load-theme 'modus-operandi-tinted :no-confirm))
+  (use-package modus-themes
+    :straight (:type git :host github :repo "protesilaos/modus-themes")
+    )
+
+  (use-package ef-themes
+    :straight (:type git :host github :repo "protesilaos/ef-themes")
+    :config
+    (modus-themes-load-theme 'ef-owl)
+    )
 
   (use-package nerd-icons
     :straight t
@@ -2505,13 +2515,11 @@ ref:https://github.com/manateelazycat/toggle-one-window
 *** hugo 配置
 
 #+begin_src emacs-lisp
-
   (if sys-is-windows
-      (defconst my-hugo-root-dir (expand-file-name "D:/Blog"))
-    (if sys-is-wsl2
-        (defconst my-hugo-root-dir (expand-file-name "/mnt/d/Blog"))
-      (defconst my-hugo-root-dir (expand-file-name "~/Blog"))))
-
+    (defconst my-hugo-root-dir (expand-file-name "D:/Blog"))
+  (if sys-is-wsl2
+      (defconst my-hugo-root-dir (expand-file-name "/mnt/d/Blog"))
+    (defconst my-hugo-root-dir (expand-file-name "~/Blog"))))
   (defconst my-hugo-image-url "https://images.xhcoding.cn/blog")
 
   (defconst my-hugo-post-url "https://xhcoding.cn/post/")
@@ -2677,34 +2685,34 @@ ref:https://github.com/manateelazycat/toggle-one-window
 ** eaf 配置
 
 #+begin_src elisp
-  (use-package eaf
-    :ban minimal?
-    :disabled t
-    :straight (emacs-application-framework :type git :host github :repo "emacs-eaf/emacs-application-framework"
-                          :files ("*")
-                          :build nil)
-    :defer t
-    :commands (eaf-open eaf-open-browser eaf-open-this-buffer eaf-open-pdf-from-history eaf-open-cloud-music)
-    :init
-    ;; 手动添加到 load-path
-    (add-to-list 'load-path (straight--repos-dir "emacs-application-framework"))
-    :config
-    (setq eaf-proxy-type "http")
-    (setq eaf-proxy-host "127.0.0.1")
-    (setq eaf-proxy-port "7890")
+    (use-package eaf
+      :ban minimal?
+      :disabled t
+      :straight (emacs-application-framework :type git :host github :repo "emacs-eaf/emacs-application-framework"
+                            :files ("*")
+                            :build nil)
+      :defer t
+      :commands (eaf-open eaf-open-browser eaf-open-this-buffer eaf-open-pdf-from-history eaf-open-cloud-music)
+      :init
+      ;; 手动添加到 load-path
+      (add-to-list 'load-path (straight--repos-dir "emacs-application-framework"))
+      :config
+      (setq eaf-proxy-type "http")
+      (setq eaf-proxy-host "127.0.0.1")
+      (setq eaf-proxy-port "7890")
 
-    (setq eaf-webengine-default-zoom 2.5)
-    (when sys-is-windows
-      (setq eaf-chrome-bookmark-file (expand-file-name "~/AppData/Local/Microsoft/Edge/User Data/Default/Bookmarks"))
+      (setq eaf-webengine-default-zoom 2.5)
+      (when sys-is-windows
+        (setq eaf-chrome-bookmark-file (expand-file-name "~/AppData/Local/Microsoft/Edge/User Data/Default/Bookmarks"))
 
-      (defun my-eaf--enable-python-utf8-mode (environment)
-        (append (list "PYTHONUTF8=1") environment))
-          (advice-add 'eaf--build-process-environment :filter-return #'my-eaf--enable-python-utf8-mode))
-    (require 'eaf-browser)
-    (require 'eaf-pdf-viewer)
-    (require 'eaf-org-previewer)
-    (require 'eaf-markdown-previewer)
-    (require 'eaf-music-player))
+        (defun my-eaf--enable-python-utf8-mode (environment)
+          (append (list "PYTHONUTF8=1") environment))
+            (advice-add 'eaf--build-process-environment :filter-return #'my-eaf--enable-python-utf8-mode))
+      (require 'eaf-browser)
+      (require 'eaf-pdf-viewer)
+      (require 'eaf-org-previewer)
+      (require 'eaf-markdown-previewer)
+      )
 
 #+end_src
 
@@ -2938,8 +2946,8 @@ Wanderlust + offlineimap3 + mu
 
 #+begin_src elisp
   (use-package tex
-    :disabled t
     :ban minimal?
+    :hook (LaTeX-mode . my-enable-code-service)
     :straight (auctex)
     :defer t
     :config

@@ -422,6 +422,19 @@ from: https://github.com/doomemacs/doomemacs/blob/master/lisp/doom-start.el
 
   (defconst sys-is-wsl2 (getenv "WSLENV"))
 
+  (defconst my-system-icon (cond
+                            (sys-is-wsl2 "  ")
+                            ((eq system-type 'gnu/linux)
+                             "  ")
+                            ((eq system-type 'windows-nt)
+                             "  ")
+                            ((eq system-type 'darwin)
+                             "  " )
+                            (t
+                             " ? ")))
+
+  (setq global-mode-string (append global-mode-string '(my-system-icon)))
+
   ;; 动态库目录
   (defconst my-lib-dir (expand-file-name "lib" user-emacs-directory))
   (add-to-list 'load-path my-lib-dir)
@@ -464,10 +477,10 @@ from: https://github.com/doomemacs/doomemacs/blob/master/lisp/doom-start.el
 
   ;; 博客相关目录
   (if sys-is-windows
-    (defconst my-blogs-dir (expand-file-name "D:/BaiduSyncdisk/Blogs"))
-  (if sys-is-wsl2
-      (defconst my-blogs-dir (expand-file-name "/mnt/d/BaiduSyncdisk/Blogs"))
-    (defconst my-blogs-dir (expand-file-name "~/BaiduSyncdisk/Blogs"))))
+      (defconst my-blogs-dir (expand-file-name "D:/BaiduSyncdisk/Blogs"))
+    (if sys-is-wsl2
+        (defconst my-blogs-dir (expand-file-name "/mnt/d/BaiduSyncdisk/Blogs"))
+      (defconst my-blogs-dir (expand-file-name "~/BaiduSyncdisk/Blogs"))))
   (defconst my-blogs-org-dir (expand-file-name "org" my-blogs-dir))
   (defconst my-blogs-image-dir (expand-file-name "images" my-blogs-dir))
 

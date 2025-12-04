@@ -1147,6 +1147,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 *** eshell 基本配置
 #+begin_src elisp
   (use-package eshell
+    :disabled
     :defer t
     :custom
     (eshell-kill-processes-on-exit t)
@@ -1189,6 +1190,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package em-hist
+    :disabled
     :defer t
     :custom
     (eshell-history-size 10240)
@@ -1200,6 +1202,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package esh-mode
+    :disabled
     :bind (:map eshell-mode-map
                 ("C-r" . consult-history)))
 #+end_src
@@ -1208,6 +1211,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package eshell-git-prompt
+    :disabled
     :straight t
     :after esh-mode
     :config
@@ -1218,6 +1222,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package eshell
+    :disabled
     :defer t
     :config
     (require 'em-dirs)
@@ -1905,6 +1910,13 @@ ref:https://github.com/manateelazycat/toggle-one-window
           (maphash #'(lambda (key value)
                        (setenv key value))
                    vars)))))
+#+end_src
+
+*** cmake-integration 配置
+
+#+begin_src elisp
+  (use-package cmake-integration
+    :straight (cmake-integration :type git :host github :repo "darcamo/cmake-integration"))
 #+end_src
 
 ** Rust 开发配置

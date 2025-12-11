@@ -279,9 +279,6 @@ Emacs 启动过程的早期加载。
         (goto-char (point-max))
         (eval-print-last-sexp)))
     (load bootstrap-file nil 'nomessage))
-
-  (setq straight-vc-git-default-clone-depth 1)
-
 #+end_src
 
 ** 空闲时增量加载包
@@ -2533,8 +2530,18 @@ ref:https://github.com/manateelazycat/toggle-one-window
           (copy-file file blog-image-new-name)
           (org-insert-link "" (concat "file:" blog-image-new-name) "")
           ))
-      )
+      (defun my-denote-blog-link-ol-export (link description format)
+        ""
+        (let* ((denote-directory my-blogs-org-dir)
+               (path-id (denote-link--ol-resolve-link-to-target link :path-id))
+               (path (file-relative-name (car path-id))))
+          (format "[%s](%s)" description (concat my-hugo-post-url (file-name-sans-extension (downcase path))))))
 
+      (with-eval-after-load 'org
+        (org-link-set-parameters "denote" :export #'my-denote-blog-link-ol-export))
+
+
+      )
 #+end_src
 
 *** hugo 配置

@@ -1336,6 +1336,34 @@ ref:https://github.com/manateelazycat/toggle-one-window
           (vterm (generate-new-buffer-name default-project-shell-name)))))
 
     (advice-add 'project-shell :override #'my-project-shell)
+
+
+    (defvar my-vterm-shells
+    '(("*vterm-pwsh*"    . "pwsh.exe")
+      ("*vterm-ros2*" . "wsl.exe -d ubuntu --cd ~ -e bash -c -l \"source /opt/ros/jazzy/setup.bash && exec bash -l\""))
+    "Alist of (BUFFER-NAME . SHELL-COMMAND) for vterm shells.")
+
+    (defun my/vterm-select-or-create ()
+      "Select an existing vterm, or create one from a shell or custom name."
+      (interactive)
+      (let* ((existing-vterms
+              (mapcar #'buffer-name
+                      (seq-filter (lambda (buf)
+                                    (with-current-buffer buf
+                                      (eq major-mode 'vterm-mode)))
+                                  (buffer-list))))
+             (shell-names (mapcar #'car my-vterm-shells))
+             (candidates (append shell-names existing-vterms))
+             (chosen (completing-read "VTerm (select or type new name): "
+                                      existing-vterms nil nil "")))
+        (when (string-empty-p chosen)
+          (setq chosen (completing-read "Select shells: " shell-names nil nil "")))
+        
+        (if (get-buffer chosen)
+            (switch-to-buffer chosen)
+          (let ((vterm-shell (cdr (assoc chosen my-vterm-shells))))
+            (vterm chosen)))))
+
     )
 #+end_src
 ** fingertip 智能括号插入
@@ -2346,7 +2374,8 @@ ref:https://github.com/manateelazycat/toggle-one-window
                                    (sass . t)
                                    (C . t)
                                    (java . t)
-                                   (plantuml . t)))
+                                   (plantuml . t)
+                                   (sql . t)))
     ;; C 执行支持 :stdin 数据
     (defun my*org-babel-execute-add-stdin(args)
       (let* ((body (nth 0 args))
@@ -2520,16 +2549,14 @@ ref:https://github.com/manateelazycat/toggle-one-window
         (interactive "fImage file: ")
         (let* ((blog-file-title (denote-retrieve-filename-title (buffer-file-name)))
                (blog-image-dir (concat (expand-file-name blog-file-title my-blogs-image-dir) "/"))
-                    (blog-image-ext (concat "." (file-name-extension file)))
-                    (blog-default-image-title (concat blog-file-title (format-time-string "-%H%M%S")))
-                    (blog-image-title (read-string "Image title: " "" nil blog-default-image-title))
-                    (blog-image-new-name (denote-format-file-name blog-image-dir (denote-get-identifier) nil blog-image-title blog-image-ext nil)))
-
+               (blog-image-ext (concat "." (file-name-extension file)))
+               (blog-default-image-title (concat blog-file-title (format-time-string "-%H%M%S")))
+               (blog-image-title (read-string "Image title: " "" nil blog-default-image-title))
+               (blog-image-new-name (denote-format-file-name blog-image-dir (denote-retrieve-filename-identifier (buffer-file-name)) nil blog-image-title blog-image-ext nil)))
           (unless (file-directory-p blog-image-dir)
             (make-directory blog-image-dir t))
           (copy-file file blog-image-new-name)
-          (org-insert-link "" (concat "file:" blog-image-new-name) "")
-          ))
+          (insert (format "[[file:%s]]" (file-relative-name blog-image-new-name (file-name-directory (buffer-file-name)))))))
       (defun my-denote-blog-link-ol-export (link description format)
         ""
         (let* ((denote-directory my-blogs-org-dir)

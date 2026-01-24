@@ -983,7 +983,7 @@ ref: https://github.com/manateelazycat/auto-save
            ("C-x C-i" . consult-imenu))
     :custom
     (consult-preview-key nil)
-    (consult-buffer-sources '(consult--source-buffer consult--source-recent-file))
+    (consult-buffer-sources '(consult-source-buffer consult-source-recent-file))
     :config
 
     (when sys-is-windows

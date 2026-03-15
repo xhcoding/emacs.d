@@ -1535,6 +1535,15 @@ ref:https://github.com/manateelazycat/toggle-one-window
           )
       (require 'lsp-bridge)
       (lsp-bridge-mode)))
+
+  (use-package eglot
+    :config
+    (add-to-list 'eglot-ignored-server-capabilities :inlayHintProvider)
+    (add-to-list 'eglot-server-programs
+                 '((c++-ts-mode c-ts-mode) "clangd"
+                   "--clang-tidy"
+                   "--header-insertion=never"
+                   "--completion-style=detailed")))
 #+end_src
 
 ** highlight-parentheses 高亮外层括号
@@ -1846,9 +1855,21 @@ ref:https://github.com/manateelazycat/toggle-one-window
 #+begin_src elisp
   (use-package c-ts-mode
     :hook ((c-ts-mode c++-ts-mode) . my-enable-code-service)
+    :preface
+    (defun my-c++-ts-indent-style()
+      (let* ((default-style (copy-alist (alist-get 'k&r (c-ts-mode--indent-styles 'cpp))))
+             (custom-style '(;; Do not indent preprocessor statements.
+                             ((node-is "preproc") column-0 0)
+                             ;; Do not indent namespace children.
+                             ((n-p-gp nil nil "namespace_definition") grand-parent 0)))
+             ;; Prepend custom rules by appending the default style to the custom style list.
+             (combined-style (append custom-style default-style)))
+        combined-style))
     :custom
     (c-ts-mode-indent-offset  4)
-    (c-basic-offset 4))
+    (c-basic-offset 4)
+    (c-ts-mode-indent-style #'my-c++-ts-indent-style)
+    )
 #+end_src
 
 *** 导入 VS 环境变量

@@ -1,0 +1,5 @@
+# -*- mode: snippet -*-
+# name: unuse
+# key: unuse
+# --
+[[maybe_unused]]

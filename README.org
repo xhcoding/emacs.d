@@ -33,6 +33,9 @@
 
 * 目录                                                                  :TOC:
 - [[#安装方法][安装方法]]
+  - [[#windows][Windows]]
+  - [[#linux][Linux]]
+    - [[#guix-pack][guix pack]]
 - [[#early-initel][early-init.el]]
   - [[#设置配置启动模式][设置配置启动模式]]
   - [[#开启-debug-on-error][开启 debug-on-error]]
@@ -46,6 +49,7 @@
   - [[#启动后全屏][启动后全屏]]
   - [[#straight-包管理][straight 包管理]]
   - [[#空闲时增量加载包][空闲时增量加载包]]
+  - [[#use-package-扩展][use-package 扩展]]
   - [[#启动速度测试][启动速度测试]]
 - [[#emacs-配置][emacs 配置]]
   - [[#载入-custom-文件][载入 custom 文件]]
@@ -64,7 +68,7 @@
     - [[#关闭启动动画][关闭启动动画]]
     - [[#scratch-buffer-设置][scratch buffer 设置]]
     - [[#yes-or-no-p-改为-y-or-n-p][yes-or-no-p 改为 y-or-n-p]]
-    - [[#关掉提示声音][关掉提示声音]]
+    - [[#关掉提示][关掉提示]]
     - [[#禁止光标闪烁][禁止光标闪烁]]
     - [[#启动时不要显示][启动时不要显示]]
     - [[#tab-设置][tab 设置]]
@@ -76,8 +80,7 @@
   - [[#rime-智能的中文输入法][rime 智能的中文输入法]]
   - [[#字体和主题][字体和主题]]
   - [[#ligature-连字体][ligature 连字体]]
-  - [[#awesome-tray-底部信息显示][awesome-tray 底部信息显示]]
-  - [[#sort-tab-快速切换到其它-buffer][sort-tab 快速切换到其它 buffer]]
+  - [[#doom-modeline][doom-modeline]]
   - [[#hydra-方便的快捷键设置][hydra 方便的快捷键设置]]
   - [[#recentf-读取最近文件][recentf 读取最近文件]]
   - [[#popper-更方便的弹出窗口][popper 更方便的弹出窗口]]
@@ -89,7 +92,6 @@
   - [[#toggle-one-window-快速切换到单窗口][toggle-one-window 快速切换到单窗口]]
   - [[#yasnippet-快速插入代码片段][yasnippet 快速插入代码片段]]
   - [[#separedit-快速编辑][separedit 快速编辑]]
-  - [[#projectileel-工程管理][projectile.el 工程管理]]
   - [[#compile-增强][compile 增强]]
   - [[#eshell-增强][eshell 增强]]
     - [[#eshell-基本配置][eshell 基本配置]]
@@ -97,38 +99,36 @@
     - [[#esh-mode-设置][esh-mode 设置]]
     - [[#eshell-git-prompt-提示符美化][eshell-git-prompt 提示符美化]]
     - [[#eshell-z-智能目录跳转][eshell-z 智能目录跳转]]
-  - [[#fingertip-智能括号插入][fingertip 智能括号插入]]
+  - [[#emacs-libvterm][emacs-libvterm]]
+  - [[#智能括号插入][智能括号插入]]
+  - [[#结构化编辑-puni][结构化编辑 puni]]
   - [[#color-rg-快速搜索重构][color-rg 快速搜索重构]]
+  - [[#markdown][markdown]]
   - [[#lsp-bridge-代码补全][lsp-bridge 代码补全]]
+  - [[#acm-terminal][acm-terminal]]
+  - [[#company-补全][company 补全]]
+  - [[#eglot-booster-加速-eglot][eglot-booster 加速 eglot]]
+  - [[#启动代码服务][启动代码服务]]
   - [[#highlight-parentheses-高亮外层括号][highlight-parentheses 高亮外层括号]]
   - [[#evil-nerd-commenter-智能注释代码][evil-nerd-commenter 智能注释代码]]
   - [[#apheleia-智能格式化代码][apheleia 智能格式化代码]]
-  - [[#wuco-拼写检查][wuco 拼写检查]]
   - [[#git-配置][git 配置]]
     - [[#magit][magit]]
     - [[#显示当前行的最后提交信息][显示当前行的最后提交信息]]
     - [[#smerge-mode-解决冲突][smerge-mode 解决冲突]]
   - [[#visual-regexp-可视化的正则替换][visual-regexp 可视化的正则替换]]
   - [[#expand-region-递增选区][expand-region 递增选区]]
-  - [[#openwith-外部工具打开文件][openwith 外部工具打开文件]]
   - [[#启用-treesit][启用 treesit]]
   - [[#elisp-配置][elisp 配置]]
   - [[#c-开发配置][C++ 开发配置]]
-    - [[#citre][citre]]
     - [[#cmake-ts-mode-设置][cmake-ts-mode 设置]]
     - [[#c-ts-mode-设置][c-ts-mode 设置]]
     - [[#导入-vs-环境变量][导入 VS 环境变量]]
+    - [[#cmake-integration-配置][cmake-integration 配置]]
   - [[#rust-开发配置][Rust 开发配置]]
   - [[#python-开发配置][python 开发配置]]
-  - [[#java-开发配置][java 开发配置]]
-  - [[#web-开发][web 开发]]
-    - [[#javascript][Javascript]]
-    - [[#typescript][Typescript]]
-    - [[#html][HTML]]
-    - [[#css][css]]
   - [[#json-ts-mode][json-ts-mode]]
   - [[#qml-开发][qml 开发]]
-  - [[#lua-开发][lua 开发]]
   - [[#plantuml-支持][plantuml 支持]]
   - [[#dape-调试][dape 调试]]
   - [[#dash-docs-查询-dash-文档][dash-docs 查询 dash 文档]]
@@ -146,9 +146,7 @@
     - [[#增量载入-org-包][增量载入 org 包]]
   - [[#知识管理及博客配置][知识管理及博客配置]]
     - [[#denote][denote]]
-    - [[#org-roam][org-roam]]
     - [[#hugo-配置][hugo 配置]]
-    - [[#上传博客图片到腾讯云对象存储][上传博客图片到腾讯云对象存储]]
     - [[#自动在中英文插入空格][自动在中英文插入空格]]
     - [[#org-download-下载图片][org-download 下载图片]]
   - [[#eaf-配置][eaf 配置]]
@@ -1366,38 +1364,23 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
     )
 #+end_src
-** fingertip 智能括号插入
+** 智能括号插入
 
 #+begin_src emacs-lisp
-  (use-package fingertip
-    :straight (fingertip :type git :host github :repo "manateelazycat/fingertip")
+  (use-package elec-pair
+    :config
+    (electric-pair-mode +1)
+    )
+#+end_src
+
+** 结构化编辑 puni
+
+#+begin_src emacs-lisp
+  (use-package puni
+    :straight t
     :defer t
-    :hook ((prog-mode toml-ts-mode) . my-enable-pair-parents)
-    :bind (:map fingertip-mode-map
-                ("(" . fingertip-open-round)
-                ("[" . fingertip-open-bracket)
-                ("{" . fingertip-open-curly)
-                (")" . fingertip-close-round)
-                ("]" . fingertip-close-bracket)
-                ("}" . fingertip-close-curly)
-                ("=" . fingertip-equal)
-                ("\"" . fingertip-double-quote)
-                ("SPC" . fingertip-space)
-                ("RET". fingertip-newline)
-                ("C-k" . fingertip-kill)
-                ("M-\"" . fingertip-wrap-double-quote)
-                ("M-[" . fingertip-wrap-bracket)
-                ("M-{" . fingertip-wrap-curly)
-                ("M-(" . fingertip-wrap-round)
-                ("M-]" . fingertip-unwrap)
-                ("M-n" . fingertip-jump-right)
-                ("M-p" . fingertip-jump-left)
-                ("M-RET" . fingertip-jump-out-pair-and-newline))
-    :init
-    (defun my-enable-pair-parents ()
-      (if (treesit-parser-list)
-          (fingertip-mode)
-        (electric-pair-mode))))
+    :hook ((prog-mode) . puni-mode))
+
 #+end_src
 
 ** color-rg 快速搜索重构
@@ -1854,21 +1837,23 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
 #+begin_src elisp
   (use-package c-ts-mode
-    :hook ((c-ts-mode c++-ts-mode) . my-enable-code-service)
-    :preface
-    (defun my-c++-ts-indent-style()
-      (let* ((default-style (copy-alist (alist-get 'k&r (c-ts-mode--indent-styles 'cpp))))
-             (custom-style '(;; Do not indent preprocessor statements.
-                             ((node-is "preproc") column-0 0)
-                             ;; Do not indent namespace children.
-                             ((n-p-gp nil nil "namespace_definition") grand-parent 0)))
-             ;; Prepend custom rules by appending the default style to the custom style list.
-             (combined-style (append custom-style default-style)))
-        combined-style))
+    :hook ((c-ts-mode c++-ts-mode) . my-c-ts-mode-setup)
     :custom
     (c-ts-mode-indent-offset  4)
     (c-basic-offset 4)
-    (c-ts-mode-indent-style #'my-c++-ts-indent-style)
+    :config
+    (defun my-c-ts-mode-setup ()
+      (treesit-simple-indent-add-rules 'cpp
+                                       '(
+                                         ((n-p-gp nil nil "namespace_definition") grand-parent 0)
+                                         ((node-is "}") standalone-parent 0)
+                                         ((parent-is "declaration_list") parent-bol c-ts-mode-indent-offset)
+                                         )
+                                       :before
+                                       'c-ts-common-baseline-indent-rule
+                                       )
+      (my-enable-code-service)
+      )
     )
 #+end_src
 

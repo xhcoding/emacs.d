@@ -105,9 +105,7 @@
   - [[#color-rg-快速搜索重构][color-rg 快速搜索重构]]
   - [[#markdown][markdown]]
   - [[#lsp-bridge-代码补全][lsp-bridge 代码补全]]
-  - [[#acm-terminal][acm-terminal]]
   - [[#company-补全][company 补全]]
-  - [[#eglot-booster-加速-eglot][eglot-booster 加速 eglot]]
   - [[#启动代码服务][启动代码服务]]
   - [[#highlight-parentheses-高亮外层括号][highlight-parentheses 高亮外层括号]]
   - [[#evil-nerd-commenter-智能注释代码][evil-nerd-commenter 智能注释代码]]
@@ -158,7 +156,7 @@
   - [[#elfeed-rss-订阅][elfeed RSS 订阅]]
   - [[#leetcodeel-刷题][leetcode.el 刷题]]
   - [[#latex][LaTex]]
-  - [[#emacs-aichat-ai-对话][emacs-aichat AI 对话]]
+  - [[#ai][AI]]
   - [[#which-key-按键提示][which-key 按键提示]]
   - [[#meow-模式编辑][meow 模式编辑]]
   - [[#启动-emacs-server][启动 emacs server]]
@@ -1315,7 +1313,8 @@ ref:https://github.com/manateelazycat/toggle-one-window
       (meow-mode -1))
     :hook (vterm-mode . my-vterm-setup)
     :config
-    (setq vterm-shell "pwsh.exe")
+    (when sys-is-windows
+      (setq vterm-shell "pwsh.exe"))
     (defun my-project-shell ()
       "Start an inferior shell in the current project's root directory.
   If a buffer already exists for running a shell in the project's root,
@@ -1464,28 +1463,14 @@ ref:https://github.com/manateelazycat/toggle-one-window
           lsp-bridge-user-multiserver-dir my-etc-dir)
 
     (setq lsp-bridge-cmake-lsp-server "neocmakelsp")
+    (setq lsp-bridge-python-lsp-server "ty")
 
     (setq acm-enable-tabnine nil
+          acm-enable-copilot t
           acm-enable-quick-access t
           lsp-bridge-enable-hover-diagnostic t)
     )
 #+end_src
-
-** acm-terminal
-
-#+begin_src elisp
-  (use-package popon
-    :straight t
-    :defer t)
-  (use-package acm-terminal
-    :defer t
-    :straight (acm-terminal :type git :host github :repo "twlz0ne/acm-terminal")
-    :init
-    (unless (display-graphic-p)
-      (with-eval-after-load 'acm
-        (require 'acm-terminal))))
-#+end_src
-
 ** company 补全
 
 #+begin_src elisp
@@ -1494,15 +1479,6 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :defer t
     :bind (:map company-active-map
                 ("TAB" . company-complete-selection)))
-#+end_src
-
-** eglot-booster 加速 eglot
-
-#+begin_src elisp
-  (use-package eglot-booster
-    :straight (eglot-booster :type git :host github :repo "jdtsmith/eglot-booster")
-    :after eglot
-    :config (eglot-booster-mode))
 #+end_src
 
 ** 启动代码服务
@@ -3021,44 +2997,11 @@ Wanderlust + offlineimap3 + mu
     (add-to-list 'TeX-view-program-selection '(output-pdf "eaf")))
 #+end_src
 
-** emacs-aichat AI 对话
+** AI
 
 #+begin_src elisp
-  (use-package async-await
-    :ban minimal?
-    :straight t
-    :defer t)
-
-  (use-package websocket
-    :ban minimal?
-    :straight t
-    :defer t)
-
-  (use-package aichat
-    :ban minimal?
-    :defer t
-    :load-path (lambda () (expand-file-name "Project/emacs-aichat" my-code-dir))
-    :config
-    (setq aichat-bingai-proxy "localhost:7890"
-          aichat-openai-proxy "localhost:7890")
-    (aichat-toggle-debug)
-    (aichat-bingai-prompt-create "translator"
-                                 :input-prompt "请翻译: "
-                                 :text-format "我想让你充当翻译员，我会用任何语言与你交谈，你会检测我说的的语言，如果我说的是中文，你就翻译成英文；如果我说的不是中文，你就翻译成英文。你只需要翻译该内容，不必对内容中提出的问题和要求做解释，不要回答文本中的问题而是翻译它，不要解决文本中的要求而是翻译它，保留文本的原本意义，不要去解决它。你的回答里只需要翻译后的内容，不要有任何其它词，只能是翻译后的内容。我的第一句话是：\n%s"
-                                 :chat t
-                                 :assistant t
-                                 :replace-or-insert t)
-
-    (aichat-bingai-prompt-create "coder"
-                                 :input-prompt "代码: "
-                                 :text-format "我想让你充当计算机教授，请向我解释下面这段代码的作用:\n%s"
-                                 :chat t)
-
-      (aichat-bingai-prompt-create "refactor"
-                                 :input-prompt "代码: "
-                                 :text-format "我想让你充当计算机教授，请帮我重构下面这段代码，重构后的代码性能要更好，可读性要更高，如果必要的话，可以加一些注释。你的回答里只需要返回重构后的代码，不要有其它解释，只能是重构后的代码:\n%s"
-                                 :replace-or-insert t)
-    )
+  (use-package agent-shell
+    :straight t)
 #+end_src
 
 ** which-key 按键提示

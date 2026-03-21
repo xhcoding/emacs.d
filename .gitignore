@@ -30,3 +30,6 @@ aichat*
 /tramp
 /org-persist
 /bookmarks.eld
+/lsp-bridge
+/agent
+/.agent-shell

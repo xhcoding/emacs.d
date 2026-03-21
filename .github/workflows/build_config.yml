@@ -11,6 +11,11 @@ jobs:
       - name: Install
         run: sudo apt update && sudo apt install -y git emacs-nox zip
 
+      - name: Tree-Sitter
+        uses: tree-sitter/setup-action@v2
+        with:
+          install-lib: true
+
       - name: Build
         run: |
              git clone https://github.com/xhcoding/emacs.d.git ~/.emacs.d; \

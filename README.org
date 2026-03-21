@@ -1468,6 +1468,12 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (setq acm-enable-tabnine nil
           acm-enable-copilot t
           acm-enable-quick-access t
+          acm-backend-order '("copilot-candidates"
+                              "mode-first-part-candidates"
+                              "template-first-part-candidates"
+                              "template-second-part-candidates"
+                              "mode-second-part-candidates")
+
           lsp-bridge-enable-hover-diagnostic t)
     )
 #+end_src

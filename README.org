@@ -440,10 +440,12 @@ from: https://github.com/doomemacs/doomemacs/blob/master/lisp/doom-start.el
   ;; 外部配置文件目录
   (defconst my-etc-dir (expand-file-name "etc" user-emacs-directory))
 
-  ;; 存放代码的目录
   (if sys-is-windows
-      (defconst my-code-dir (expand-file-name "D:/Code"))
-    (defconst my-code-dir (expand-file-name "~/Code")))
+      (defconst my-dir-prefix (expand-file-name "D:/"))
+    (defconst my-dir-prefix (expand-file-name "~")))
+
+  ;; 存放代码的目录
+  (defconst my-code-dir (expand-file-name "Code" my-dir-prefix))
 
   ;; 开源代码
   (defconst my-code-opensource-dir (expand-file-name "Github" my-code-dir))
@@ -454,35 +456,17 @@ from: https://github.com/doomemacs/doomemacs/blob/master/lisp/doom-start.el
   ;; 个人项目代码
   (defconst my-code-project-dir (expand-file-name "Project" my-code-dir))
 
-  ;; 练习代码或实例代码，这里面一般根据语言再分一层
-  (defconst my-code-demo-dir (expand-file-name "Demo" my-code-dir))
-
 
   ;; 数据目录
-  (if sys-is-windows
-      (defconst my-docs-dir (expand-file-name "D:/Docs"))
-    (if sys-is-wsl2
-        (defconst my-docs-dir (expand-file-name "/mnt/d/Docs"))
-      (defconst my-docs-dir (expand-file-name "~/Docs"))))
+  (defconst my-docs-dir (expand-file-name "Docs" my-dir-prefix))
 
   ;; 笔记目录
   (defconst my-notes-dir (expand-file-name "Notes" my-docs-dir))
 
-  ;; 博客相关目录
-  (if sys-is-windows
-      (defconst my-blogs-dir (expand-file-name "D:/BaiduSyncdisk/Blogs"))
-    (if sys-is-wsl2
-        (defconst my-blogs-dir (expand-file-name "/mnt/d/BaiduSyncdisk/Blogs"))
-      (defconst my-blogs-dir (expand-file-name "~/BaiduSyncdisk/Blogs"))))
-  (defconst my-blogs-org-dir (expand-file-name "org" my-blogs-dir))
-  (defconst my-blogs-image-dir (expand-file-name "images" my-blogs-dir))
+  (defconst my-notes-image-dir (expand-file-name "Images" my-notes-dir))
 
-  ;; Org 相关目录
-  (if sys-is-windows
-      (defconst my-org-dir (expand-file-name "Org" my-docs-dir))
-    (if sys-is-wsl2
-        (defconst my-org-dir (expand-file-name "Org" my-docs-dir))
-      (defconst my-org-dir (expand-file-name "Org" my-docs-dir))))
+  (defconst my-org-dir (expand-file-name "Org" my-docs-dir))
+
   ;; 私有文件目录
   (defconst my-private-dir (expand-file-name "Private" my-org-dir))
 
@@ -2505,20 +2489,14 @@ ref:https://github.com/manateelazycat/toggle-one-window
 *** denote
 
 #+begin_src elisp
-    (use-package denote
-      :ban minimal?
-      :straight t
-      :custom
-      (denote-directory my-notes-dir)
-      :config
-      (defun denote-blog ()
-        "Create blog for publish."
-        (declare (interactive-only t))
-        (interactive)
-        (let ((denote-directory my-blogs-org-dir)
-              (denote-prompts '(title))
-              (denote-org-front-matter
-               "#+title: %1$s
+  (use-package denote
+    :ban minimal?
+    :straight t
+    :custom
+    (denote-directory my-notes-dir)
+    :config
+    (setq denote-org-front-matter
+          "#+title: %1$s
   ,#+date: %2$s
   ,#+author: xhcoding
   ,#+identifier: %4$s
@@ -2527,46 +2505,39 @@ ref:https://github.com/manateelazycat/toggle-one-window
   ,#+hugo_categories: %3$s
   ,#+hugo_draft: false
 
-  "
-               ))
-          (call-interactively #'denote-open-or-create)))
+  ")
+    (defun denote-blog-image-insert (file)
+      "Insert image file to blog."
+      (declare (interactive-only t))
+      (interactive "fImage file: ")
+      (let* ((blog-file-title (denote-retrieve-filename-title (buffer-file-name)))
+             (blog-image-dir (concat (expand-file-name blog-file-title my-notes-image-dir) "/"))
+             (blog-image-ext (concat "." (file-name-extension file)))
+             (blog-default-image-title (concat blog-file-title (format-time-string "-%H%M%S")))
+             (blog-image-title (read-string "Image title: " "" nil blog-default-image-title))
+             (blog-image-new-name (denote-format-file-name blog-image-dir (denote-retrieve-filename-identifier (buffer-file-name)) nil blog-image-title blog-image-ext nil)))
+        (unless (file-directory-p blog-image-dir)
+          (make-directory blog-image-dir t))
+        (copy-file file blog-image-new-name)
+        (insert (format "[[file:%s]]" (file-relative-name blog-image-new-name (file-name-directory (buffer-file-name)))))))
+    (defun my-denote-blog-link-ol-export (link description format)
+      ""
+      (let* ((denote-directory my-notes-dir)
+             (path-id (denote-link--ol-resolve-link-to-target link :path-id))
+             (path (file-relative-name (car path-id))))
+        (format "[%s](%s)" description (concat my-hugo-post-url (file-name-sans-extension (downcase path))))))
 
-      (defun denote-blog-image-insert (file)
-        "Insert image file to blog."
-        (declare (interactive-only t))
-        (interactive "fImage file: ")
-        (let* ((blog-file-title (denote-retrieve-filename-title (buffer-file-name)))
-               (blog-image-dir (concat (expand-file-name blog-file-title my-blogs-image-dir) "/"))
-               (blog-image-ext (concat "." (file-name-extension file)))
-               (blog-default-image-title (concat blog-file-title (format-time-string "-%H%M%S")))
-               (blog-image-title (read-string "Image title: " "" nil blog-default-image-title))
-               (blog-image-new-name (denote-format-file-name blog-image-dir (denote-retrieve-filename-identifier (buffer-file-name)) nil blog-image-title blog-image-ext nil)))
-          (unless (file-directory-p blog-image-dir)
-            (make-directory blog-image-dir t))
-          (copy-file file blog-image-new-name)
-          (insert (format "[[file:%s]]" (file-relative-name blog-image-new-name (file-name-directory (buffer-file-name)))))))
-      (defun my-denote-blog-link-ol-export (link description format)
-        ""
-        (let* ((denote-directory my-blogs-org-dir)
-               (path-id (denote-link--ol-resolve-link-to-target link :path-id))
-               (path (file-relative-name (car path-id))))
-          (format "[%s](%s)" description (concat my-hugo-post-url (file-name-sans-extension (downcase path))))))
-
-      (with-eval-after-load 'org
-        (org-link-set-parameters "denote" :export #'my-denote-blog-link-ol-export))
+    (with-eval-after-load 'org
+      (org-link-set-parameters "denote" :export #'my-denote-blog-link-ol-export))
 
 
-      )
+    )
 #+end_src
 
 *** hugo 配置
 
 #+begin_src emacs-lisp
-  (if sys-is-windows
-    (defconst my-hugo-root-dir (expand-file-name "D:/Blog"))
-  (if sys-is-wsl2
-      (defconst my-hugo-root-dir (expand-file-name "/mnt/d/Blog"))
-    (defconst my-hugo-root-dir (expand-file-name "~/Blog"))))
+  (defconst my-hugo-root-dir (expand-file-name "Blog" my-dir-prefix))
   (defconst my-hugo-image-url "https://images.xhcoding.cn/blog")
 
   (defconst my-hugo-post-url "https://xhcoding.cn/post/")
@@ -2583,12 +2554,12 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :config
     (defun my-hugo--blogs-image-path-p (raw-path)
       (let ((file-path (expand-file-name raw-path)))
-        (equal (string-match-p (regexp-quote (expand-file-name my-blogs-image-dir)) file-path) 0)))
+        (equal (string-match-p (regexp-quote (expand-file-name my-notes-image-dir)) file-path) 0)))
 
     ;; D:/Data/Blogs/images/1.png ==> https://images.xhcoding.cn/blog/1.png
     (defun my-hugo--image-path-to-url (raw-path)
       (let ((file-path (expand-file-name raw-path)))
-        (concat my-hugo-image-url (string-trim-left file-path my-blogs-image-dir))))
+        (concat my-hugo-image-url (string-trim-left file-path my-notes-image-dir))))
 
     ;; D:/Data/Blogs/images/1.png ==> https://images.xhcoding.cn/blog/1.png
     (defun my-hugo*convert-path-to-url (args)
@@ -2625,10 +2596,10 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (defun my/hugo-export-all-blogs ()
       "Export all blogs."
       (interactive)
-      (dolist (file (directory-files my-blogs-org-dir))
+      (dolist (file (directory-files my-notes-dir))
         (when (string-equal "org" (file-name-extension file))
           (with-temp-buffer
-            (find-file (expand-file-name file my-blogs-org-dir))
+            (find-file (expand-file-name file my-notes-org-dir))
             (org-hugo-export-to-md)))))
 
     )
@@ -2639,7 +2610,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :defer t
     :config
     (setq easy-hugo-basedir (expand-file-name my-hugo-root-dir)
-          easy-hugo-postdir (expand-file-name my-blogs-org-dir)
+          easy-hugo-postdir (expand-file-name my-notes-dir)
           easy-hugo-org-header t
           easy-hugo-github-deploy-script "deploy.bat"))
 
@@ -2671,7 +2642,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
             org-download-display-inline-images 'posframe
             org-download-abbreviate-filename-function 'expand-file-name))
 
-    (setq-default org-download-image-dir my-blog-img-dir
+    (setq-default org-download-image-dir my-notes-image-dir
                   org-download-heading-lvl nil)
 
 
@@ -2717,7 +2688,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
                     (url-generic-parse-url link)))))
             (org-file-path (buffer-file-name))
             (org-file-name (file-name-sans-extension (file-name-nondirectory org-file-path)))
-            (dirname (expand-file-name org-file-name my-blog-img-dir)))
+            (dirname (expand-file-name org-file-name my-notes-image-dir)))
         (when (and (featurep 'org-roam) (string-prefix-p org-roam-directory org-file-path))
           (setq dirname (expand-file-name
                          (substring org-file-name (+ 1 (string-match-p "-" org-file-name)))

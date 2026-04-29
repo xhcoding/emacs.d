@@ -2320,21 +2320,21 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (org-confirm-babel-evaluate nil)
     (org-export-use-babel nil)
     (org-src-lang-modes '(("C" . c-ts)
-                         ("C++" . c++-ts)
-                         ("asymptote" . asy)
-                         ("bash" . sh)
-                         ("beamer" . latex)
-                         ("calc" . fundamental)
-                         ("cpp" . c++-ts)
-                         ("ditaa" . artist)
-                         ("desktop" . conf-desktop)
-                         ("dot" . fundamental)
-                         ("elisp" . emacs-lisp)
-                         ("ocaml" . tuareg)
-                         ("screen" . shell-script)
-                         ("shell" . sh)
-                         ("sqlite" . sql)
-                         ("toml" . conf-toml)))
+  			("C++" . c++-ts)
+  			("asymptote" . asy)
+  			("bash" . sh)
+  			("beamer" . latex)
+  			("calc" . fundamental)
+  			("cpp" . c++-ts)
+  			("ditaa" . artist)
+  			("desktop" . conf-desktop)
+  			("dot" . fundamental)
+  			("elisp" . emacs-lisp)
+  			("ocaml" . tuareg)
+  			("screen" . shell-script)
+  			("shell" . sh)
+  			("sqlite" . sql)
+  			("toml" . conf-toml)))
     :config
     (org-babel-do-load-languages 'org-babel-load-languages
                                  '((emacs-lisp . t)
@@ -2369,6 +2369,152 @@ ref:https://github.com/manateelazycat/toggle-one-window
         ))
     (advice-add #'org-babel-C-execute :filter-args 'my*org-babel-execute-add-stdin)
 
+    (defun org-babel-execute:cmake-cpp (body params)
+      "Execute a C++ code block with CMake.
+  BODY is the source code.  PARAMS is the header arguments alist.
+
+  Header arguments:
+    :pkgs        - Package(s) for find_package.
+    :libs        - Library(ies) for target_link_libraries.
+    :includes    - Include directory(ies).
+    :defines     - Compile definition(s).
+    :cmake-flags - Flags passed to cmake configure step.
+    :flags       - Extra compiler flags (appended to CMAKE_CXX_FLAGS).
+    :std         - C++ standard version (default \"20\").
+    :cmdline     - Arguments passed to the compiled binary at runtime.
+    :extra-src   - Named block(s) prepended to main source before compilation."
+      (cl-labels
+  	((listify
+             (val)
+             (cond ((null val) nil)
+  		 ((listp val) val)
+  		 (t (list val))))
+
+  	 (parse-params
+             ()
+             (list :packages    (listify (cdr (assq :pkgs params)))
+  		 :libs        (listify (cdr (assq :libs params)))
+  		 :includes    (listify (cdr (assq :includes params)))
+  		 :defines     (listify (cdr (assq :defines params)))
+  		 :extra-srcs  (listify (cdr (assq :extra-src params)))
+  		 :cmake-flags (cdr (assq :cmake-flags params))
+  		 :flags       (cdr (assq :flags params))
+  		 :std         (or (cdr (assq :std params)) "20")
+  		 :cmdline     (cdr (assq :cmdline params))))
+
+  	 (resolve-block
+             (name)
+             "Return the expanded source body of the named org block NAME.
+  Must be called from the org buffer."
+             (let ((info (org-babel-find-named-block name)))
+               (unless info
+                 (error "Named block '%s' not found" name))
+               (save-excursion
+                 (goto-char info)
+                 (org-babel-expand-src-block))))
+
+  	 (resolve-all-extra-srcs
+             (parsed)
+             "Resolve all extra source blocks while still in the org buffer.
+  Returns a list of source strings."
+             (mapcar #'resolve-block (plist-get parsed :extra-srcs)))
+
+  	 (write-source
+             (src-file extra-bodies)
+             "Write assembled C++ source to SRC-FILE.
+  EXTRA-BODIES is a list of already-resolved source strings."
+             (with-temp-file src-file
+               (dolist (body-str extra-bodies)
+                 (insert body-str)
+                 (insert "\n"))
+               (insert body)))
+
+  	 (write-cmakelists
+             (cmake-file parsed)
+             (with-temp-file cmake-file
+               (insert "cmake_minimum_required(VERSION 3.15)\n"
+                       "project(org-babel-cmake CXX)\n"
+                       "if(POLICY CMP0144)\n"
+                       "  cmake_policy(SET CMP0144 NEW)\n"
+                       "endif()\n"
+                       (format "set(CMAKE_CXX_STANDARD %s)\n"
+                               (plist-get parsed :std))
+                       "set(CMAKE_CXX_STANDARD_REQUIRED ON)\n"
+                       "set(CMAKE_CXX_EXTENSIONS OFF)\n")
+               (let ((flags (plist-get parsed :flags)))
+                 (when flags
+  		 (insert (format "set(CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} %s\")\n"
+  				 flags))))
+               (dolist (pkg (plist-get parsed :packages))
+                 (insert (format "find_package(%s REQUIRED)\n" pkg)))
+               (dolist (inc (plist-get parsed :includes))
+                 (insert (format "include_directories(%s)\n" inc)))
+               (dolist (def (plist-get parsed :defines))
+                 (insert (format "add_definitions(-D%s)\n" def)))
+               (insert "add_executable(main main.cpp)\n")
+               (dolist (lib (plist-get parsed :libs))
+                 (insert (format "target_link_libraries(main %s)\n" lib)))))
+
+  	 (configure
+             (tmp-dir parsed)
+             (org-babel-eval
+              (format "cmake -S %s -B %s %s"
+                      (shell-quote-argument tmp-dir)
+                      (shell-quote-argument tmp-dir)
+                      (or (plist-get parsed :cmake-flags) ""))
+              ""))
+
+  	 (build
+             (tmp-dir)
+             (org-babel-eval
+              (format "cmake --build %s -- -j$(nproc)"
+                      (shell-quote-argument tmp-dir))
+              ""))
+
+  	 (run
+             (bin-file parsed)
+             (org-babel-eval
+              (concat (shell-quote-argument bin-file)
+                      (let ((cmdline (plist-get parsed :cmdline)))
+                        (when cmdline (concat " " cmdline))))
+              ""))
+
+  	 (format-result
+             (raw-result)
+             (when raw-result
+               (let ((result (org-remove-indentation raw-result)))
+                 (org-babel-reassemble-table
+  		(org-babel-result-cond (cdr (assq :result-params params))
+  		  result
+  		  (let ((tmp-file (org-babel-temp-file "c-")))
+                      (with-temp-file tmp-file (insert result))
+                      (org-babel-import-elisp-from-file tmp-file)))
+  		(org-babel-pick-name
+  		 (cdr (assq :colname-names params))
+  		 (cdr (assq :colnames params)))
+  		(org-babel-pick-name
+  		 (cdr (assq :rowname-names params))
+  		 (cdr (assq :rownames params))))))))
+
+        ;; ---------- main ----------
+        (let* ((parsed      (parse-params))
+               (extra-bodies (resolve-all-extra-srcs parsed))  ;; ← 在 org buffer 中解析
+               (tmp-dir     (make-temp-file "ob-cmake-" t))
+               (src-file    (expand-file-name "main.cpp" tmp-dir))
+               (bin-file    (expand-file-name "main" tmp-dir))
+               (cmake-file  (expand-file-name "CMakeLists.txt" tmp-dir))
+               (result nil))
+  	(unwind-protect
+              (progn
+                (write-source src-file extra-bodies)  ;; ← 传入已解析的字符串
+                (write-cmakelists cmake-file parsed)
+                (configure tmp-dir parsed)
+                (build tmp-dir)
+                (setq result (run bin-file parsed)))
+            (delete-directory tmp-dir t))
+  	(format-result result))))
+
+    
     )
 #+end_src
 

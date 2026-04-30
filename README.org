@@ -1339,7 +1339,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
                                       existing-vterms nil nil "")))
         (when (string-empty-p chosen)
           (setq chosen (completing-read "Select shells: " shell-names nil nil "")))
-        
+
         (if (get-buffer chosen)
             (switch-to-buffer chosen)
           (let ((vterm-shell (cdr (assoc chosen my-vterm-shells))))
@@ -2368,153 +2368,6 @@ ref:https://github.com/manateelazycat/toggle-one-window
         `(,body ,params)
         ))
     (advice-add #'org-babel-C-execute :filter-args 'my*org-babel-execute-add-stdin)
-
-    (defun org-babel-execute:cmake-cpp (body params)
-      "Execute a C++ code block with CMake.
-  BODY is the source code.  PARAMS is the header arguments alist.
-
-  Header arguments:
-    :pkgs        - Package(s) for find_package.
-    :libs        - Library(ies) for target_link_libraries.
-    :includes    - Include directory(ies).
-    :defines     - Compile definition(s).
-    :cmake-flags - Flags passed to cmake configure step.
-    :flags       - Extra compiler flags (appended to CMAKE_CXX_FLAGS).
-    :std         - C++ standard version (default \"20\").
-    :cmdline     - Arguments passed to the compiled binary at runtime.
-    :extra-src   - Named block(s) prepended to main source before compilation."
-      (cl-labels
-  	((listify
-             (val)
-             (cond ((null val) nil)
-  		 ((listp val) val)
-  		 (t (list val))))
-
-  	 (parse-params
-             ()
-             (list :packages    (listify (cdr (assq :pkgs params)))
-  		 :libs        (listify (cdr (assq :libs params)))
-  		 :includes    (listify (cdr (assq :includes params)))
-  		 :defines     (listify (cdr (assq :defines params)))
-  		 :extra-srcs  (listify (cdr (assq :extra-src params)))
-  		 :cmake-flags (cdr (assq :cmake-flags params))
-  		 :flags       (cdr (assq :flags params))
-  		 :std         (or (cdr (assq :std params)) "20")
-  		 :cmdline     (cdr (assq :cmdline params))))
-
-  	 (resolve-block
-             (name)
-             "Return the expanded source body of the named org block NAME.
-  Must be called from the org buffer."
-             (let ((info (org-babel-find-named-block name)))
-               (unless info
-                 (error "Named block '%s' not found" name))
-               (save-excursion
-                 (goto-char info)
-                 (org-babel-expand-src-block))))
-
-  	 (resolve-all-extra-srcs
-             (parsed)
-             "Resolve all extra source blocks while still in the org buffer.
-  Returns a list of source strings."
-             (mapcar #'resolve-block (plist-get parsed :extra-srcs)))
-
-  	 (write-source
-             (src-file extra-bodies)
-             "Write assembled C++ source to SRC-FILE.
-  EXTRA-BODIES is a list of already-resolved source strings."
-             (with-temp-file src-file
-               (dolist (body-str extra-bodies)
-                 (insert body-str)
-                 (insert "\n"))
-               (insert body)))
-
-  	 (write-cmakelists
-             (cmake-file parsed)
-             (with-temp-file cmake-file
-               (insert "cmake_minimum_required(VERSION 3.15)\n"
-                       "project(org-babel-cmake CXX)\n"
-                       "if(POLICY CMP0144)\n"
-                       "  cmake_policy(SET CMP0144 NEW)\n"
-                       "endif()\n"
-                       (format "set(CMAKE_CXX_STANDARD %s)\n"
-                               (plist-get parsed :std))
-                       "set(CMAKE_CXX_STANDARD_REQUIRED ON)\n"
-                       "set(CMAKE_CXX_EXTENSIONS OFF)\n")
-               (let ((flags (plist-get parsed :flags)))
-                 (when flags
-  		 (insert (format "set(CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} %s\")\n"
-  				 flags))))
-               (dolist (pkg (plist-get parsed :packages))
-                 (insert (format "find_package(%s REQUIRED)\n" pkg)))
-               (dolist (inc (plist-get parsed :includes))
-                 (insert (format "include_directories(%s)\n" inc)))
-               (dolist (def (plist-get parsed :defines))
-                 (insert (format "add_definitions(-D%s)\n" def)))
-               (insert "add_executable(main main.cpp)\n")
-               (dolist (lib (plist-get parsed :libs))
-                 (insert (format "target_link_libraries(main %s)\n" lib)))))
-
-  	 (configure
-             (tmp-dir parsed)
-             (org-babel-eval
-              (format "cmake -S %s -B %s %s"
-                      (shell-quote-argument tmp-dir)
-                      (shell-quote-argument tmp-dir)
-                      (or (plist-get parsed :cmake-flags) ""))
-              ""))
-
-  	 (build
-             (tmp-dir)
-             (org-babel-eval
-              (format "cmake --build %s -- -j$(nproc)"
-                      (shell-quote-argument tmp-dir))
-              ""))
-
-  	 (run
-             (bin-file parsed)
-             (org-babel-eval
-              (concat (shell-quote-argument bin-file)
-                      (let ((cmdline (plist-get parsed :cmdline)))
-                        (when cmdline (concat " " cmdline))))
-              ""))
-
-  	 (format-result
-             (raw-result)
-             (when raw-result
-               (let ((result (org-remove-indentation raw-result)))
-                 (org-babel-reassemble-table
-  		(org-babel-result-cond (cdr (assq :result-params params))
-  		  result
-  		  (let ((tmp-file (org-babel-temp-file "c-")))
-                      (with-temp-file tmp-file (insert result))
-                      (org-babel-import-elisp-from-file tmp-file)))
-  		(org-babel-pick-name
-  		 (cdr (assq :colname-names params))
-  		 (cdr (assq :colnames params)))
-  		(org-babel-pick-name
-  		 (cdr (assq :rowname-names params))
-  		 (cdr (assq :rownames params))))))))
-
-        ;; ---------- main ----------
-        (let* ((parsed      (parse-params))
-               (extra-bodies (resolve-all-extra-srcs parsed))  ;; ← 在 org buffer 中解析
-               (tmp-dir     (make-temp-file "ob-cmake-" t))
-               (src-file    (expand-file-name "main.cpp" tmp-dir))
-               (bin-file    (expand-file-name "main" tmp-dir))
-               (cmake-file  (expand-file-name "CMakeLists.txt" tmp-dir))
-               (result nil))
-  	(unwind-protect
-              (progn
-                (write-source src-file extra-bodies)  ;; ← 传入已解析的字符串
-                (write-cmakelists cmake-file parsed)
-                (configure tmp-dir parsed)
-                (build tmp-dir)
-                (setq result (run bin-file parsed)))
-            (delete-directory tmp-dir t))
-  	(format-result result))))
-
-    
     )
 #+end_src
 
@@ -2534,7 +2387,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (defun my-org--verify-refile-target ()
       "Exclude todo keywords with a done state from refile targets."
       (not (member (nth 2 (org-heading-components)) org-done-keywords)))
-     
+
     :custom
     (org-agenda-files `(,my-org-inbox-file ,my-org-projects-file))
     (org-capture-templates `(("i" "Inbox" entry
@@ -2640,6 +2493,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     :straight t
     :custom
     (denote-directory my-notes-dir)
+
     :config
     (setq denote-org-front-matter
           "#+title: %1$s
@@ -2649,11 +2503,256 @@ ref:https://github.com/manateelazycat/toggle-one-window
   ,#+hugo_locale: zh
   ,#+hugo_tags: %3$s
   ,#+hugo_categories: %3$s
-  ,#+hugo_draft: false
+  ,#+hugo_draft: true
 
   ")
-    (defun denote-blog-image-insert (file)
-      "Insert image file to blog."
+    (setq denote-excluded-directories-regexp "\\(.stfolder\\)")
+
+
+    (defun my/denote-insert-attach-name (&optional title)
+      "Insert a Denote attachment filename at point.
+  ID is generated by `format-time-string', TITLE is prompted."
+      (interactive)
+      (let* ((title    (or title (read-string "Title: ")))
+             (id       (format-time-string "%Y%m%dT%H%M%S"))
+             (filename (concat id "--" title)))
+        (insert filename)
+        (message "Inserted: %s" filename)))
+
+    (defun org-babel-execute:denote-cpp (body params)
+      "Execute a C++ code block with CMake.
+  BODY is the source code.  PARAMS is the header arguments alist.
+
+  Header arguments:
+    :pkgs        - Package(s) for find_package.
+    :libs        - Library(ies) for target_link_libraries.
+    :includes    - Include directory(ies).
+    :defines     - Compile definition(s).
+    :cmake-flags - Flags passed to cmake configure step.
+    :flags       - Extra compiler flags (appended to CMAKE_CXX_FLAGS).
+    :std         - C++ standard version (default \"20\").
+    :cmdline     - Arguments passed to the compiled binary at runtime.
+    :extra-src   - Named block(s) prepended to main source before compilation.
+    :denote      - Denote id--title[.ext] string.  When set, the full destination
+                   path is generated with org file keywords and passed as the last
+                   command-line argument to the binary.  If the image file is
+                   generated successfully, a denote: link is appended to the result.
+                   Example: \"20250415T150233--depth-map-result.png\" or
+                            \"20250415T150233--depth-map-result\" (no extension)."
+      (cl-labels
+  	((listify
+             (val)
+             (cond ((null val) nil)
+  		 ((listp val) val)
+  		 (t (list val))))
+
+  	 (parse-params
+             ()
+             (list :packages    (listify (cdr (assq :pkgs params)))
+  		 :libs        (listify (cdr (assq :libs params)))
+  		 :includes    (listify (cdr (assq :includes params)))
+  		 :defines     (listify (cdr (assq :defines params)))
+  		 :extra-srcs  (listify (cdr (assq :extra-src params)))
+  		 :cmake-flags (cdr (assq :cmake-flags params))
+  		 :flags       (cdr (assq :flags params))
+  		 :std         (or (cdr (assq :std params)) "20")
+  		 :cmdline     (cdr (assq :cmdline params))
+  		 :denote      (cdr (assq :denote params))))
+
+  	 ;; ---- org buffer helpers ----
+
+  	 (resolve-block
+             (name)
+             (let ((info (org-babel-find-named-block name)))
+               (unless info
+                 (error "Named block '%s' not found" name))
+               (save-excursion
+                 (goto-char info)
+                 (org-babel-expand-src-block))))
+
+  	 (resolve-all-extra-srcs
+             (parsed)
+             (mapcar #'resolve-block (plist-get parsed :extra-srcs)))
+
+  	 ;; ---- file I/O ----
+
+  	 (write-source
+             (src-file extra-bodies)
+             (with-temp-file src-file
+               (dolist (body-str extra-bodies)
+                 (insert body-str)
+                 (insert "\n"))
+               (insert body)))
+
+  	 (write-cmakelists
+             (cmake-file parsed)
+             (with-temp-file cmake-file
+               (insert "cmake_minimum_required(VERSION 3.15)\n"
+                       "project(org-babel-cmake)\n"
+                       (format "set(CMAKE_CXX_STANDARD %s)\n"
+                               (plist-get parsed :std))
+                       "set(CMAKE_CXX_STANDARD_REQUIRED ON)\n"
+                       "set(CMAKE_CXX_EXTENSIONS OFF)\n")
+               (let ((flags (plist-get parsed :flags)))
+                 (when flags
+  		 (insert (format "set(CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} %s\")\n"
+  				 flags))))
+               (dolist (pkg (plist-get parsed :packages))
+                 (insert (format "find_package(%s REQUIRED)\n" pkg)))
+               (dolist (inc (plist-get parsed :includes))
+                 (insert (format "include_directories(%s)\n" inc)))
+               (dolist (def (plist-get parsed :defines))
+                 (insert (format "add_definitions(-D%s)\n" def)))
+               (insert "add_executable(main main.cpp)\n")
+               (dolist (lib (plist-get parsed :libs))
+                 (insert (format "target_link_libraries(main %s)\n" lib)))))
+
+  	 ;; ---- build & run ----
+
+  	 (configure
+             (tmp-dir parsed)
+             (org-babel-eval
+              (format "cmake -S %s -B %s %s"
+                      (shell-quote-argument tmp-dir)
+                      (shell-quote-argument tmp-dir)
+                      (or (plist-get parsed :cmake-flags) ""))
+              ""))
+
+  	 (build
+             (tmp-dir)
+             (org-babel-eval
+              (format "cmake --build %s -- -j$(nproc)"
+                      (shell-quote-argument tmp-dir))
+              ""))
+
+  	 (run
+             (bin-file parsed denote-path)
+             (let ((cmdline (or (plist-get parsed :cmdline) "")))
+               (when denote-path
+                 (setq cmdline
+                       (string-trim (concat cmdline " " denote-path))))
+               (org-babel-eval
+                (concat (shell-quote-argument bin-file)
+                        (when (not (string-empty-p cmdline))
+  			(concat " " cmdline)))
+                "")))
+
+  	 ;; ---- denote helpers ----
+
+  	 (get-org-dir ()
+             (let ((file (buffer-file-name)))
+               (if file (file-name-directory file) default-directory)))
+
+  	 (get-org-file-title ()
+             (let ((file (buffer-file-name)))
+               (when file
+                 (denote-retrieve-filename-title file))))
+
+  	 (get-org-file-keywords ()
+             (let ((file (buffer-file-name)))
+               (when file
+                 (let ((kw (denote-retrieve-filename-keywords file)))
+  		 (when (and kw (not (string-empty-p kw)))
+                     (split-string kw "_"))))))
+
+  	 (parse-denote-name
+             (denote-name)
+             "Split DENOTE-NAME into (id . (title . ext)).
+  DENOTE-NAME format: \"id--title\" or \"id--title.ext\".
+  Example: \"20250415T150233--depth-map-result.png\"
+    => (\"20250415T150233\" . (\"depth-map-result\" . \".png\"))
+  Example: \"20250415T150233--depth-map-result\"
+    => (\"20250415T150233\" . (\"depth-map-result\" . nil))"
+             (let ((parts (split-string denote-name "--" t)))
+               (if (>= (length parts) 2)
+  		 (let* ((id    (car parts))
+  			(rest  (mapconcat #'identity (cdr parts) "--"))
+  			(ext   (file-name-extension rest t))
+  			(title (file-name-sans-extension rest)))
+                     (cons id (cons title (and ext (not (string-empty-p ext)) ext))))
+                 (error "Invalid :denote format, expected id--title[.ext]: %s" denote-name))))
+
+  	 (build-denote-dest-path
+             (parsed)
+             "Build destination path using `denote-format-file-name'.
+  Returns (full-path . relative-path) or nil if :denote is not set."
+             (when-let* ((denote-name (plist-get parsed :denote)))
+               (let* ((org-dir    (get-org-dir))
+                      (org-title  (or (get-org-file-title) "untitled"))
+                      (keywords   (get-org-file-keywords))
+                      (parsed-name (parse-denote-name denote-name))
+                      (id         (car parsed-name))
+                      (title      (cadr parsed-name))
+                      (ext        (or (cddr parsed-name) ""))
+                      (dest-dir   (file-name-as-directory
+  				 (expand-file-name
+  				  (concat "images/" org-title) org-dir)))
+                      (denote-file (file-name-nondirectory
+  				  (denote-format-file-name
+                                     dest-dir id keywords title ext nil)))
+                      (full-path  (expand-file-name denote-file dest-dir))
+                      (rel-path   (concat "images/" org-title "/" denote-file)))
+                 (cons full-path rel-path))))
+
+  	 ;; ---- result formatting ----
+
+  	 (make-denote-link
+             (parsed)
+             (let* ((parsed-name (parse-denote-name (plist-get parsed :denote)))
+  		  (id    (car parsed-name))
+  		  (title (cadr parsed-name)))
+               (format "[[denote:%s]]" id)))
+
+  	 (format-result
+             (raw-result denote-paths parsed)
+             (when raw-result
+               (let ((result (org-remove-indentation raw-result)))
+                 (setq result
+                       (org-babel-reassemble-table
+                        (org-babel-result-cond (cdr (assq :result-params params))
+  			result
+  			(let ((tmp-file (org-babel-temp-file "c-")))
+  			  (with-temp-file tmp-file (insert result))
+  			  (org-babel-import-elisp-from-file tmp-file)))
+                        (org-babel-pick-name
+                         (cdr (assq :colname-names params))
+                         (cdr (assq :colnames params)))
+                        (org-babel-pick-name
+                         (cdr (assq :rowname-names params))
+                         (cdr (assq :rownames params)))))
+                 (if (and denote-paths
+  			(file-exists-p (car denote-paths)))
+                     (concat result "\n" (make-denote-link parsed))
+  		 result)))))
+
+        ;; ---- main ----
+        (let* ((parsed       (parse-params))
+               (extra-bodies (resolve-all-extra-srcs parsed))
+               (denote-paths (build-denote-dest-path parsed))
+               (tmp-dir      (make-temp-file "ob-cmake-" t))
+               (src-file     (expand-file-name "main.cpp" tmp-dir))
+               (bin-file     (expand-file-name "main" tmp-dir))
+               (cmake-file   (expand-file-name "CMakeLists.txt" tmp-dir))
+               (result nil))
+  	(unwind-protect
+              (progn
+                (write-source src-file extra-bodies)
+                (write-cmakelists cmake-file parsed)
+                (configure tmp-dir parsed)
+                (build tmp-dir)
+                (setq result
+                      (run bin-file parsed
+  			 (when denote-paths (car denote-paths)))))
+            (delete-directory tmp-dir t))
+  	(format-result result denote-paths parsed))))
+
+    (eval-after-load 'org
+      '(add-to-list 'org-src-lang-modes '("denote-cpp" . c++-ts)))
+
+
+
+    (defun denote-image-insert (file)
+      "Insert image file to notes."
       (declare (interactive-only t))
       (interactive "fImage file: ")
       (let* ((blog-file-title (denote-retrieve-filename-title (buffer-file-name)))
@@ -2668,15 +2767,13 @@ ref:https://github.com/manateelazycat/toggle-one-window
         (insert (format "[[file:%s]]" (file-relative-name blog-image-new-name (file-name-directory (buffer-file-name)))))))
     (defun my-denote-blog-link-ol-export (link description format)
       ""
-      (let* ((denote-directory my-notes-dir)
+      (let* ((denote-directory my-blogs-org-dir)
              (path-id (denote-link--ol-resolve-link-to-target link :path-id))
              (path (file-relative-name (car path-id))))
         (format "[%s](%s)" description (concat my-hugo-post-url (file-name-sans-extension (downcase path))))))
 
     (with-eval-after-load 'org
       (org-link-set-parameters "denote" :export #'my-denote-blog-link-ol-export))
-
-
     )
 #+end_src
 

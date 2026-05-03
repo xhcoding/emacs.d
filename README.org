@@ -1450,7 +1450,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (setq lsp-bridge-python-lsp-server "ty")
 
     (setq acm-enable-tabnine nil
-          acm-enable-copilot t
+          acm-enable-copilot nil
           acm-enable-quick-access t
           acm-backend-order '("copilot-candidates"
                               "mode-first-part-candidates"
@@ -1458,7 +1458,9 @@ ref:https://github.com/manateelazycat/toggle-one-window
                               "template-second-part-candidates"
                               "mode-second-part-candidates")
 
-          lsp-bridge-enable-hover-diagnostic t)
+          lsp-bridge-enable-completion-in-string t
+
+          )
     )
 #+end_src
 ** company 补全
@@ -2767,8 +2769,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
         (insert (format "[[file:%s]]" (file-relative-name blog-image-new-name (file-name-directory (buffer-file-name)))))))
     (defun my-denote-blog-link-ol-export (link description format)
       ""
-      (let* ((denote-directory my-blogs-org-dir)
-             (path-id (denote-link--ol-resolve-link-to-target link :path-id))
+      (let* ((path-id (denote-link--ol-resolve-link-to-target link :path-id))
              (path (file-relative-name (car path-id))))
         (format "[%s](%s)" description (concat my-hugo-post-url (file-name-sans-extension (downcase path))))))
 
@@ -2780,7 +2781,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 *** hugo 配置
 
 #+begin_src emacs-lisp
-  (defconst my-hugo-root-dir (expand-file-name "Blog" my-dir-prefix))
+  (defconst my-hugo-root-dir (expand-file-name "Blog" my-docs-dir))
   (defconst my-hugo-image-url "https://images.xhcoding.cn/blog")
 
   (defconst my-hugo-post-url "https://xhcoding.cn/post/")
@@ -2799,10 +2800,28 @@ ref:https://github.com/manateelazycat/toggle-one-window
       (let ((file-path (expand-file-name raw-path)))
         (equal (string-match-p (regexp-quote (expand-file-name my-notes-image-dir)) file-path) 0)))
 
-    ;; D:/Data/Blogs/images/1.png ==> https://images.xhcoding.cn/blog/1.png
+    ;; ~/Documents/Notes/images/1.png ==> https://images.xhcoding.cn/blog/1.png
     (defun my-hugo--image-path-to-url (raw-path)
       (let ((file-path (expand-file-name raw-path)))
         (concat my-hugo-image-url (string-trim-left file-path my-notes-image-dir))))
+
+    (defun my-hugo--denote-blog-link-ol-export (link description format)
+      ""
+      (let* ((path-id (denote-link--ol-resolve-link-to-target link :path-id))
+             (full-path (car path-id))
+             (url))
+        (if (my-hugo--blogs-image-path-p full-path)
+            (let ((image-url (my-hugo--image-path-to-url full-path)))
+              (message "image url: %s" image-url)
+              (setq url (format "{{< figure src=\"%s\" >}}" image-url)))
+          (let (path (file-relative-name (car path-id)))
+            (setq url (format "[%s](%s)" description (concat my-hugo-post-url (file-name-sans-extension (downcase path)))))))
+        url
+        ))
+
+    (with-eval-after-load 'org
+      (org-link-set-parameters "denote" :export #'my-hugo--denote-blog-link-ol-export))
+
 
     ;; D:/Data/Blogs/images/1.png ==> https://images.xhcoding.cn/blog/1.png
     (defun my-hugo*convert-path-to-url (args)

@@ -253,7 +253,7 @@ Emacs 启动过程的早期加载。
 
 #+begin_src elisp
   (when full?
-    (push '(fullscreen . fullscreen) default-frame-alist))
+    (push '(fullscreen . maximized) default-frame-alist))
 
 #+end_src
 
@@ -458,7 +458,7 @@ from: https://github.com/doomemacs/doomemacs/blob/master/lisp/doom-start.el
 
 
   ;; 数据目录
-  (defconst my-docs-dir (expand-file-name "Docs" my-dir-prefix))
+  (defconst my-docs-dir (expand-file-name "Documents" my-dir-prefix))
 
   ;; 笔记目录
   (defconst my-notes-dir (expand-file-name "Notes" my-docs-dir))

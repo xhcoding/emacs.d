@@ -2822,6 +2822,20 @@ ref:https://github.com/manateelazycat/toggle-one-window
     (with-eval-after-load 'org
       (org-link-set-parameters "denote" :export #'my-hugo--denote-blog-link-ol-export))
 
+    (defun my-hugo*convert-denote-cpp-to-cpp (args)
+    "将 ARGS 中 src-block 的 :language 从 denote-cpp 改为 cpp。"
+    (let ((src-block (car args))
+          (contents (cadr args))
+          (info (caddr args)))
+      ;; 复制 src-block 以避免副作用
+      (setq src-block (org-element-copy src-block))
+      (when (eq (org-element-type src-block) 'src-block)
+        (let ((lang (org-element-property :language src-block)))
+          (when (string= lang "denote-cpp")
+            (org-element-put-property src-block :language "cpp"))))
+      (list src-block contents info)))
+
+    (advice-add #'org-hugo-src-block :filter-args #'my-hugo*convert-denote-cpp-to-cpp)
 
     ;; D:/Data/Blogs/images/1.png ==> https://images.xhcoding.cn/blog/1.png
     (defun my-hugo*convert-path-to-url (args)

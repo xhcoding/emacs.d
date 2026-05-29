@@ -1383,8 +1383,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 #+begin_src emacs-lisp
   (use-package puni
     :straight t
-    :defer t
-    :hook ((prog-mode) . puni-mode))
+    :bind ("C-k" . puni-kill-line))
 
 #+end_src
 

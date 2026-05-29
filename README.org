@@ -1971,6 +1971,17 @@ ref:https://github.com/manateelazycat/toggle-one-window
     )
 #+end_src
 
+** xml
+
+#+begin_src elisp
+  (use-package nxml-mode
+    :mode (("\\.sdf\\'"    . nxml-mode)
+           ("\\.world\\'"  . nxml-mode)
+           ("\\.urdf\\'"   . nxml-mode)
+           ("\\.xacro\\'"  . nxml-mode)))
+
+#+end_src
+
 ** qml 开发
 
 #+begin_src elisp

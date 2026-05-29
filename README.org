@@ -1292,6 +1292,7 @@ ref:https://github.com/manateelazycat/toggle-one-window
 ** emacs-libvterm
 #+begin_src elisp
   (use-package vterm
+    :disabled t
     :straight (vterm :type git :host github :repo "xhcoding/emacs-libvterm")
     :preface
     (defun my-vterm-setup()
@@ -1349,6 +1350,25 @@ ref:https://github.com/manateelazycat/toggle-one-window
 
     )
 #+end_src
+
+** ghostel term
+
+#+begin_src elisp
+  (use-package ghostel
+    :straight t
+    :config
+    (setq ghostel-shell "/bin/zsh")
+    (with-eval-after-load 'meow
+      ;; 默认为插入模式
+      (add-to-list 'meow-mode-state-list '(ghostel-mode . insert)))
+
+    (use-package project
+      :bind
+      (:map project-prefix-map
+            ("s" . ghostel-project)))
+    )
+#+end_src
+
 ** 智能括号插入
 
 #+begin_src emacs-lisp

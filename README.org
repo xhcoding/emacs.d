@@ -716,6 +716,8 @@ ref: https://github.com/manateelazycat/auto-save
     (rime-user-data-dir (expand-file-name "rime-user" my-etc-dir))
 
     :config
+    (add-hook 'kill-emacs-hook #'rime-lib-finalize)
+    
     (setq
      rime-disable-predicates '(rime-predicate-after-alphabet-char-p
                                rime-predicate-prog-in-code-p))
